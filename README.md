@@ -7,7 +7,7 @@ The Lunar Rescue Mission, set in the year 2075, forms the theme of the IEEE Sout
 ## System Architecture
 
 ### Ground Robot
-The ground robot serves as the primary system for executing the lunar rescue and antenna tasks. It is controlled by a Raspberry Pi running, Rust and C based software. The robot has a maximum weight of 25 pounds and has to be starting in an area of 12 inches by 12 inches by 12 inches. It is equipped with sensors, including computer vision for navigation and object detection, encoders for precise movement tracking, and an IMU for orientation and stability. The robot's actuators consist of motors for mobility and servo mechanisms for performing antenna tasks.
+The ground robot serves as the primary system for executing the lunar rescue and antenna tasks. It is controlled by a Raspberry Pi running Embeed C. The robot has a maximum weight of 25 pounds and has to be starting in an area of 12 inches by 12 inches by 12 inches. The robot's actuators consist of motors for mobility and servo mechanisms for performing antenna tasks.
 
 ### Micro UAV
 An optional micro UAV complements the system by handling specific tasks. Controlled by an ESP32 microcontroller with Rust and C based firmware, the UAV has a maximum weight of 250 grams (0.55 pounds). Its primary functions include detecting LED colors on the antennas and transmitting data to Earth via infrared (IR) communication to a photodiode.
