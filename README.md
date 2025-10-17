@@ -28,8 +28,8 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ---
 
-| Field                | Details                          |
+| Field                 | Details                          |
 |-----------------------|----------------------------------|
 | IEEE Student Branch   | Florida Polytechnic University   |
 | Region                | IEEE Region 3 (SoutheastCon)     |
-| Competition Location  | TBD                              |
+| Competition Location  | Alabama                          |
