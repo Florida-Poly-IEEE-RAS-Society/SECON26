@@ -1,0 +1,14 @@
+/build/
+/bin/
+*.o
+*.a
+*.elf
+*.hex
+*.bin
+.cman/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store

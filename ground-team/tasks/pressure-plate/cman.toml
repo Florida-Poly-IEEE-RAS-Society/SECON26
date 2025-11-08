@@ -1,0 +1,21 @@
+[project]
+name = "pressure-plate"
+version = "0.1.0"
+type = "embedded"
+
+[build]
+compiler = "arm-none-eabi-gcc"
+src = "src"
+include = "include"
+build = "build"
+bin = "bin"
+cflags = "-Wall -Wextra -mcpu=cortex-m4 -mthumb -nostdlib"
+ldflags = ""
+
+[dev]
+debug = true
+optimization = "0"
+
+[release]
+debug = false
+optimization = "3"
