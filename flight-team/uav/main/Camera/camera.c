@@ -1,6 +1,6 @@
 #include "camera.h"
-
 #include "esp_camera.h"
+#include "sensor.h"
 
 #define PWDN_GPIO_NUM     -1
 #define RESET_GPIO_NUM    -1
@@ -38,37 +38,20 @@ esp_err_t Camera_init(void) {
         .pin_pclk = PCLK_GPIO_NUM,
         .pin_vsync = VSYNC_GPIO_NUM,
         .pin_href = HREF_GPIO_NUM,
-        .pin_sscb_sda = SIOD_GPIO_NUM,
-        .pin_sscb_scl = SIOC_GPIO_NUM,
+        .pin_sccb_sda = SIOD_GPIO_NUM,
+        .pin_sccb_scl = SIOC_GPIO_NUM,
         .pin_pwdn = PWDN_GPIO_NUM,
         .pin_reset = RESET_GPIO_NUM,
         .xclk_freq_hz = 20000000,
-        // .frame_size = FRAMESIZE_UXGA,
-        .frame_size = FRAMESIZE_240X240,
-        // .pixel_format = PIXFORMAT_JPEG, // for streaming
-        .pixel_format = PIXFORMAT_RGB565,
+        .frame_size = FRAMESIZE_240X240,//FRAMESIZE_UXGA,
+        .pixel_format = PIXFORMAT_RGB565,//PIXFORMAT_JPEG, // for streaming
         .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
         .fb_location = CAMERA_FB_IN_PSRAM,
         .jpeg_quality = 12,
         .fb_count = 1,
     };
 
-    if (cfg.pixel_format == PIXFORMAT_JPEG) {
-        /* if (psramFound()) { */
-            cfg.jpeg_quality = 10;
-            cfg.fb_count = 2;
-            cfg.grab_mode = CAMERA_GRAB_LATEST;
-        /* } else { */
-            /* cfg.frame_size = FRAMESIZE_SVGA; */
-            /* cfg.fb_location = CAMERA_FB_IN_DRAM; */
-        /* } */
-    } else {
-        cfg.frame_size = FRAMESIZE_240X240;
-        cfg.fb_count = 2;
-    }
-
      esp_err_t err = esp_camera_init(&cfg);
-
      return err;
 }
 

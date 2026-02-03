@@ -29,7 +29,7 @@ typedef struct {
     int16_t accel_radius; /**< acceleration radius */
 
     int16_t mag_radius; /**< magnetometer radius */
-} adafruit_bno055_offsets_t;
+} bno055_offsets_t;
 
 /** Operation mode settings **/
 typedef enum {
@@ -46,7 +46,7 @@ typedef enum {
     OPERATION_MODE_M4G = 0X0A,
     OPERATION_MODE_NDOF_FMC_OFF = 0X0B,
     OPERATION_MODE_NDOF = 0X0C
-} adafruit_bno055_opmode_t;
+} bno055_opmode_t;
 
 typedef enum {
     /* Page id register definition */
@@ -194,13 +194,13 @@ typedef enum {
     ACCEL_RADIUS_MSB_ADDR = 0X68,
     MAG_RADIUS_LSB_ADDR = 0X69,
     MAG_RADIUS_MSB_ADDR = 0X6A
-} adafruit_bno055_reg_t;
+} bno055_reg_t;
 
 typedef enum {
     POWER_MODE_NORMAL = 0X00,
     POWER_MODE_LOWPOWER = 0X01,
     POWER_MODE_SUSPEND = 0X02
-} adafruit_bno055_powermode_t;
+} bno055_powermode_t;
 
 /** Remap settings **/
 typedef enum {
@@ -212,7 +212,7 @@ typedef enum {
     REMAP_CONFIG_P5 = 0x21,
     REMAP_CONFIG_P6 = 0x21,
     REMAP_CONFIG_P7 = 0x24
-} adafruit_bno055_axis_remap_config_t;
+} bno055_axis_remap_config_t;
 
 /** Remap Signs **/
 typedef enum {
@@ -224,7 +224,7 @@ typedef enum {
     REMAP_SIGN_P5 = 0x01,
     REMAP_SIGN_P6 = 0x07,
     REMAP_SIGN_P7 = 0x05
-} adafruit_bno055_axis_remap_sign_t;
+} bno055_axis_remap_sign_t;
 
 /** A structure to represent revisions **/
 typedef struct {
@@ -233,7 +233,7 @@ typedef struct {
     uint8_t gyro_rev;  /**< gyroscrope rev */
     uint16_t sw_rev;   /**< SW rev */
     uint8_t bl_rev;    /**< bootloader rev */
-} adafruit_bno055_rev_info_t;
+} bno055_rev_info_t;
 
 /** Vector Mappings **/
 typedef enum {
@@ -243,7 +243,7 @@ typedef enum {
     VECTOR_EULER = BNO055_EULER_H_LSB_ADDR,
     VECTOR_LINEARACCEL = BNO055_LINEAR_ACCEL_DATA_X_LSB_ADDR,
     VECTOR_GRAVITY = BNO055_GRAVITY_DATA_X_LSB_ADDR
-} adafruit_vector_type_t;
+} vector_type_t;
 
 typedef enum {
   SENSOR_TYPE_ACCELEROMETER = (1), /**< Gravity + linear acceleration */
@@ -342,29 +342,29 @@ typedef struct {
     double z;
 } Quaternion;
 
-bool bno055_begin(adafruit_bno055_opmode_t mode/* = OPERATION_MODE_NDOF*/);
-void bno055_setMode(adafruit_bno055_opmode_t mode);
-adafruit_bno055_opmode_t getMode(void);
-void bno055_setAxisRemap(adafruit_bno055_axis_remap_config_t remapcode);
-void bno055_setAxisSign(adafruit_bno055_axis_remap_sign_t remapsign);
-void bno055_getRevInfo(adafruit_bno055_rev_info_t *);
+bool bno055_begin(int32_t sensorID, bno055_opmode_t mode/* = OPERATION_MODE_NDOF*/, uint8_t address);
+void bno055_setMode(bno055_opmode_t mode);
+bno055_opmode_t getMode(void);
+void bno055_setAxisRemap(bno055_axis_remap_config_t remapcode);
+void bno055_setAxisSign(bno055_axis_remap_sign_t remapsign);
+void bno055_getRevInfo(bno055_rev_info_t *);
 void bno055_setExtCrystalUse(bool usextal);
 void bno055_getSystemStatus(uint8_t *system_status, uint8_t *self_test_result, uint8_t *system_error);
 void bno055_getCalibration(uint8_t *sys, uint8_t *gyro, uint8_t *accel, uint8_t *mag);
 
-Vector3 bno055_getVector(adafruit_vector_type_t vector_type);
+Vector3 bno055_getVector(vector_type_t vector_type);
 Quaternion bno055_getQuat(void);
 int8_t bno055_getTemp(void);
 
-/* Adafruit_Sensor implementation */
+/* Sensor implementation */
 bool bno055_getEvent1(sensors_event_t *);
-bool bno055_getEvent2(sensors_event_t *, adafruit_vector_type_t);
+bool bno055_getEvent2(sensors_event_t *, vector_type_t);
 
 /* Functions to deal with raw calibration data */
 bool bno055_getSensorOffsets1(uint8_t *calibData);
-bool bno055_getSensorOffsets2(adafruit_bno055_offsets_t *offsets_type);
+bool bno055_getSensorOffsets2(bno055_offsets_t *offsets_type);
 void bno055_setSensorOffsets3(uint8_t const *calibData);
-void bno055_setSensorOffsets4(adafruit_bno055_offsets_t const *offsets_type);
+void bno055_setSensorOffsets4(bno055_offsets_t const *offsets_type);
 bool bno055_isFullyCalibrated(void);
 
 /* Power managments functions */

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "esp_camera.h"
 #include "esp_check.h"
 
 esp_err_t Camera_init(void);

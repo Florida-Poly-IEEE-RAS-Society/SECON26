@@ -1,74 +1,84 @@
-#include "adafruit_bno055.h"
+#include "bno055.h"
 
 #include <string.h>
 
 #include "driver/i2c_master.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "hal/i2c_types.h"
+#include "soc/clk_tree_defs.h"
 
-#define I2C_MASTER_SCL_IO           6       /*!< GPIO number used for I2C master clock */
-#define I2C_MASTER_SDA_IO           5       /*!< GPIO number used for I2C master data  */
-#define I2C_MASTER_NUM              I2C_NUM_0                   /*!< I2C port number for master dev */
-#define I2C_MASTER_FREQ_HZ          400000 /*!< I2C master clock frequency */
-#define I2C_MASTER_TX_BUF_DISABLE   0                           /*!< I2C master doesn't need buffer */
-#define I2C_MASTER_RX_BUF_DISABLE   0                           /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_SDA_IO     5
+#define I2C_MASTER_SCL_IO     6
+#define I2C_MASTER_FREQ_HZ    400000
 #define I2C_MASTER_TIMEOUT_MS 1000
 
 // Private
 static int32_t _sensorID;
-static adafruit_bno055_opmode_t _mode;
-
-static i2c_master_bus_handle_t _bus_handle;
-static i2c_master_dev_handle_t _dev_handle;
+static uint8_t _i2c_addr;
+static bno055_opmode_t _mode;
+static i2c_master_bus_handle_t _bus_handle = NULL;
+static i2c_master_dev_handle_t _dev_handle = NULL;
 
 static void delay(int ms) {
     vTaskDelay(ms / portTICK_PERIOD_MS);
 }
 
-static void i2c_master_init(i2c_master_bus_handle_t *bus_handle, i2c_master_dev_handle_t *dev_handle) {
+static void i2c_master_init(uint8_t address) {
     i2c_master_bus_config_t bus_config = {
-        .i2c_port = I2C_MASTER_NUM,
+        .i2c_port = I2C_NUM_0,
         .sda_io_num = I2C_MASTER_SDA_IO,
         .scl_io_num = I2C_MASTER_SCL_IO,
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .glitch_ignore_cnt = 7,
-        .flags.enable_internal_pullup = true,
+        .flags.enable_internal_pullup = 1,
     };
-    i2c_new_master_bus(&bus_config, bus_handle);
+    ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &_bus_handle));
 
     i2c_device_config_t dev_config = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address = BNO055_ADDRESS_A, // hmmm
+        .device_address = address,
         .scl_speed_hz = I2C_MASTER_FREQ_HZ,
     };
-    i2c_master_bus_add_device(*bus_handle, &dev_config, dev_handle);
+    ESP_ERROR_CHECK(i2c_master_bus_add_device(_bus_handle, &dev_config, &_dev_handle));
+    _i2c_addr = address;
 }
 
-static uint8_t bno055_read8(adafruit_bno055_reg_t reg) {
-    uint8_t buffer[1] = {reg};
-    i2c_master_transmit_receive(_dev_handle, buffer, 1, buffer, 1, I2C_MASTER_TIMEOUT_MS);
-    return buffer[0];
-}
-
-static bool bno055_readLen(adafruit_bno055_reg_t reg, uint8_t *buffer, uint8_t len) {
+static uint8_t bno055_read8(bno055_reg_t reg) {
     uint8_t reg_buf[1] = {(uint8_t)reg};
-    return i2c_master_transmit_receive(_dev_handle, reg_buf, 1, reg_buf, 1, I2C_MASTER_TIMEOUT_MS);
+    uint8_t data[1] = {0};
+    esp_err_t err = i2c_master_transmit_receive(_dev_handle, reg_buf, 1, data, 1, I2C_MASTER_TIMEOUT_MS);
+    if (err != ESP_OK) {
+        printf("I2C READ ERROR reading %x: %s (0x%x)\n", reg, esp_err_to_name(err), err);
+        return 0;
+    }
+    
+    return data[0];
 }
 
-static bool bno055_write8(adafruit_bno055_reg_t reg, uint8_t value) {
+static void bno055_readLen(bno055_reg_t reg, uint8_t *buffer, uint8_t len) {
+    uint8_t reg_buf[1] = {(uint8_t)reg};
+    ESP_ERROR_CHECK(i2c_master_transmit_receive(_dev_handle, reg_buf, 1, buffer, len, I2C_MASTER_TIMEOUT_MS));
+}
+
+static void bno055_write8(bno055_reg_t reg, uint8_t value) {
     uint8_t buffer[2] = {(uint8_t)reg, (uint8_t)value};
-    return i2c_master_transmit(_dev_handle, buffer, sizeof(buffer), I2C_MASTER_TIMEOUT_MS);
+    ESP_ERROR_CHECK(i2c_master_transmit(_dev_handle, buffer, 2, I2C_MASTER_TIMEOUT_MS));
 }
 // End Private
 
 // Begin Public
-bool bno055_begin(adafruit_bno055_opmode_t mode) {
+bool bno055_begin(int32_t sensorID, bno055_opmode_t mode, uint8_t address) {
     delay(850);
-    i2c_master_init(&_bus_handle, &_dev_handle);
+    i2c_master_init(address);
 
-    delay(1000);
-    uint8_t id = bno055_read8(BNO055_CHIP_ID_ADDR);
-    if (id != BNO055_ID) {
-        return false;
+    uint8_t bno055_id = bno055_read8(BNO055_CHIP_ID_ADDR);
+    if (bno055_id != BNO055_ID) {
+        delay(1000);
+        bno055_id = bno055_read8(BNO055_CHIP_ID_ADDR);
+        if (bno055_id != BNO055_ID) {
+            return false;
+        }
     }
 
     bno055_setMode(OPERATION_MODE_CONFIG);
@@ -91,21 +101,23 @@ bool bno055_begin(adafruit_bno055_opmode_t mode) {
     bno055_setMode(mode);
     delay(20);
 
+    _sensorID = sensorID;
+
     return true;
 }
 
-void bno055_setMode(adafruit_bno055_opmode_t mode) {
+void bno055_setMode(bno055_opmode_t mode) {
     _mode = mode;
     bno055_write8(BNO055_OPR_MODE_ADDR, _mode);
     delay(30);
 }
 
-adafruit_bno055_opmode_t getMode() {
-    return (adafruit_bno055_opmode_t)bno055_read8(BNO055_OPR_MODE_ADDR);
+bno055_opmode_t getMode(void) {
+    return (bno055_opmode_t)bno055_read8(BNO055_OPR_MODE_ADDR);
 }
 
-void bno055_setAxisRemap(adafruit_bno055_axis_remap_config_t remapcode) {
-    adafruit_bno055_opmode_t modeback = _mode;
+void bno055_setAxisRemap(bno055_axis_remap_config_t remapcode) {
+    bno055_opmode_t modeback = _mode;
 
     bno055_setMode(OPERATION_MODE_CONFIG);
     delay(25);
@@ -116,8 +128,8 @@ void bno055_setAxisRemap(adafruit_bno055_axis_remap_config_t remapcode) {
     delay(20);
 }
 
-void bno055_setAxisSign(adafruit_bno055_axis_remap_sign_t remapsign) {
-    adafruit_bno055_opmode_t modeback = _mode;
+void bno055_setAxisSign(bno055_axis_remap_sign_t remapsign) {
+    bno055_opmode_t modeback = _mode;
 
     bno055_setMode(OPERATION_MODE_CONFIG);
     delay(25);
@@ -128,10 +140,10 @@ void bno055_setAxisSign(adafruit_bno055_axis_remap_sign_t remapsign) {
     delay(20);
 }
 
-void bno055_getRevInfo(adafruit_bno055_rev_info_t *info) {
+void bno055_getRevInfo(bno055_rev_info_t *info) {
     uint8_t a, b;
-
-    memset(info, 0, sizeof(adafruit_bno055_rev_info_t));
+    
+    memset(info, 0, sizeof(bno055_rev_info_t));
 
     /* Check the accelerometer revision */
     info->accel_rev = bno055_read8(BNO055_ACCEL_REV_ID_ADDR);
@@ -151,7 +163,7 @@ void bno055_getRevInfo(adafruit_bno055_rev_info_t *info) {
 }
 
 void bno055_setExtCrystalUse(bool usextal) {
-    adafruit_bno055_opmode_t modeback = _mode;
+    bno055_opmode_t modeback = _mode;
 
     /* Switch to config mode (just in case since this is the default) */
     bno055_setMode(OPERATION_MODE_CONFIG);
@@ -234,7 +246,7 @@ void bno055_getCalibration(uint8_t *sys, uint8_t *gyro, uint8_t *accel, uint8_t 
     }
 }
 
-Vector3 bno055_getVector(adafruit_vector_type_t vector_type) {
+Vector3 bno055_getVector(vector_type_t vector_type) {
     Vector3 xyz;
     uint8_t buffer[6] = {0};
 
@@ -242,7 +254,7 @@ Vector3 bno055_getVector(adafruit_vector_type_t vector_type) {
     x = y = z = 0;
 
     /* Read vector data (6 bytes) */
-    bno055_readLen((adafruit_bno055_reg_t)vector_type, buffer, 6);
+    bno055_readLen((bno055_reg_t)vector_type, buffer, 6);
 
     x = ((int16_t)buffer[0]) | (((int16_t)buffer[1]) << 8);
     y = ((int16_t)buffer[2]) | (((int16_t)buffer[3]) << 8);
@@ -329,7 +341,7 @@ int8_t bno055_getTemp(void) {
     return temp;
 }
 
-/* Adafruit_Sensor implementation */
+/* Sensor implementation */
 bool bno055_getEvent1(sensors_event_t *event) {
     memset(event, 0, sizeof(sensors_event_t));
 
@@ -347,7 +359,7 @@ bool bno055_getEvent1(sensors_event_t *event) {
   return true;
 }
 
-bool bno055_getEvent2(sensors_event_t * event, adafruit_vector_type_t vec_type) {
+bool bno055_getEvent2(sensors_event_t * event, vector_type_t vec_type) {
     /* Clear the event */
     memset(event, 0, sizeof(sensors_event_t));
 
@@ -407,7 +419,7 @@ bool bno055_getEvent2(sensors_event_t * event, adafruit_vector_type_t vec_type) 
 /* Functions to deal with raw calibration data */
 bool bno055_getSensorOffsets1(uint8_t *calibData) {
     if (bno055_isFullyCalibrated()) {
-        adafruit_bno055_opmode_t lastMode = _mode;
+        bno055_opmode_t lastMode = _mode;
         bno055_setMode(OPERATION_MODE_CONFIG);
 
         bno055_readLen(ACCEL_OFFSET_X_LSB_ADDR, calibData, NUM_BNO055_OFFSET_REGISTERS);
@@ -418,9 +430,9 @@ bool bno055_getSensorOffsets1(uint8_t *calibData) {
     return false;
 }
 
-bool bno055_getSensorOffsets2(adafruit_bno055_offsets_t *offsets_type) {
+bool bno055_getSensorOffsets2(bno055_offsets_t *offsets_type) {
     if (bno055_isFullyCalibrated()) {
-        adafruit_bno055_opmode_t lastMode = _mode;
+        bno055_opmode_t lastMode = _mode;
         bno055_setMode(OPERATION_MODE_CONFIG);
         delay(25);
 
@@ -473,7 +485,7 @@ bool bno055_getSensorOffsets2(adafruit_bno055_offsets_t *offsets_type) {
 }
 
 void bno055_setSensorOffsets3(uint8_t const *calibData) {
-    adafruit_bno055_opmode_t lastMode = _mode;
+    bno055_opmode_t lastMode = _mode;
     bno055_setMode(OPERATION_MODE_CONFIG);
     delay(25);
 
@@ -513,8 +525,8 @@ void bno055_setSensorOffsets3(uint8_t const *calibData) {
     bno055_setMode(lastMode);
 }
 
-void bno055_setSensorOffsets4(adafruit_bno055_offsets_t const *offsets_type) {
-     adafruit_bno055_opmode_t lastMode = _mode;
+void bno055_setSensorOffsets4(bno055_offsets_t const *offsets_type) {
+     bno055_opmode_t lastMode = _mode;
      bno055_setMode(OPERATION_MODE_CONFIG);
      delay(25);
 
@@ -580,7 +592,7 @@ bool bno055_isFullyCalibrated(void) {
 
 /* Power managments functions */
 void bno055_enterSuspendMode(void) {
-    adafruit_bno055_opmode_t modeback = _mode;
+    bno055_opmode_t modeback = _mode;
 
     /* Switch to config mode (just in case since this is the default) */
     bno055_setMode(OPERATION_MODE_CONFIG);
@@ -592,7 +604,7 @@ void bno055_enterSuspendMode(void) {
 }
 
 void bno055_enterNormalMode(void) {
-    adafruit_bno055_opmode_t modeback = _mode;
+    bno055_opmode_t modeback = _mode;
 
     /* Switch to config mode (just in case since this is the default) */
     bno055_setMode(OPERATION_MODE_CONFIG);
