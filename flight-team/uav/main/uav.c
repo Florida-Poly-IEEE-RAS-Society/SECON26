@@ -1,6 +1,7 @@
 #include "IR/ir.h"
 #include "Camera/camera.h"
 #include "Gyro/bno055.h"
+#include "Wifi/wifi.h"
 
 #include <stdio.h>
 
@@ -10,7 +11,7 @@
 #define IR_GPIO 8
 
 // arbitrary
-#define GYRO_ID 55 
+#define GYRO_ID 55
 
 void app_main(void) {
     /* bool ok = bno055_begin(GYRO_ID, OPERATION_MODE_NDOF, BNO055_ADDRESS_A); */
@@ -44,4 +45,6 @@ void app_main(void) {
 
     /* IRtx_t ir; */
     /* IRtx_init(&ir, IR_GPIO); */
+
+    wifi_init();
 }
