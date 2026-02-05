@@ -65,7 +65,7 @@ void wifi_init_softap(void)
 #else /* CONFIG_ESP_WIFI_SOFTAP_SAE_SUPPORT */
             .authmode = WIFI_AUTH_WPA2_PSK,
 #endif
-            .pmf_cfg = {
+           .pmf_cfg = {
                     .required = true,
             },
 #ifdef CONFIG_ESP_WIFI_BSS_MAX_IDLE_SUPPORT

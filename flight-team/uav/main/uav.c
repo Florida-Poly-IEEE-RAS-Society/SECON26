@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "esp_camera.h"
+#include "server/server.h"
 #include "freertos/FreeRTOS.h"
 
 #define IR_GPIO 8
@@ -31,7 +32,7 @@ void app_main(void) {
     /*     printf("%ld: (%f, %f, %f)\n", event.sensor_id, event.orientation.x, event.orientation.y, event.orientation.z); */
     /*     vTaskDelay(100 / portTICK_PERIOD_MS); */
     /* } */
-    
+
 
     Camera_init();
 
@@ -42,9 +43,11 @@ void app_main(void) {
     }
 
     printf("THE PICTURE IS THIS BIG!!!!: %zu\n", fb->len);
+    esp_camera_fb_return(fb);
 
     /* IRtx_t ir; */
     /* IRtx_init(&ir, IR_GPIO); */
 
     wifi_init();
+    server_init();
 }
