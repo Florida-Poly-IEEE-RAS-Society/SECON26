@@ -1,5 +1,6 @@
 #include <string.h>
 #include "esp_log.h"
+#include "../Camera/camera.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -9,6 +10,8 @@
 #define PORT 3333
 
 static const char *TAG = "TCP_SERVER";
+
+int sock;
 
 static void do_retransmit(const int sock)
 {
@@ -39,6 +42,60 @@ static void do_retransmit(const int sock)
             }
         }
     } while (len > 0);
+}
+
+static void send_numbers(const int sock) {
+    char rx_buffer[128];
+    while (1) {
+        for (char c = '0'; c < '9'; c++) {
+            rx_buffer[0] = c;
+            int written = send(sock, rx_buffer, 1, 0);
+            if (written < 0) {
+                ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+                // Failed to retransmit, giving up
+                return;
+            }
+
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+        }
+    }
+}
+
+static void send_camera_task() {
+    while (1) {
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        camera_fb_t *fb = esp_camera_fb_get();
+        if (fb == NULL) {
+            continue;
+        }
+
+        char size_buffer[4];
+        for (uint32_t i = 0; i < 4; i++) {
+            size_buffer[4-i-1] = ((uint32_t)(fb->len)) >> (i*8) & (0xFF);
+        }
+
+        ESP_LOGI(TAG, "Image length: %d", fb->len);
+
+        int written = send(sock, size_buffer, 4, 0);
+        if (written < 0) {`
+            ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+            // Failed to retransmit, giving up
+            esp_camera_fb_return(fb);
+
+            return;
+        }
+
+        written = send(sock, fb->buf, fb->len, 0);
+        if (written < 0) {
+            ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+            // Failed to retransmit, giving up
+            esp_camera_fb_return(fb);
+
+            return;
+        }
+        esp_camera_fb_return(fb);
+
+    }
 }
 
 static void tcp_server_task(void *pvParameters)
@@ -91,7 +148,7 @@ static void tcp_server_task(void *pvParameters)
 
         struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
         socklen_t addr_len = sizeof(source_addr);
-        int sock = accept(listen_sock, (struct sockaddr *)&source_addr, &addr_len);
+        sock = accept(listen_sock, (struct sockaddr *)&source_addr, &addr_len);
         if (sock < 0) {
             ESP_LOGE(TAG, "Unable to accept connection: errno %d", errno);
             break;
@@ -110,7 +167,7 @@ static void tcp_server_task(void *pvParameters)
 
         ESP_LOGI(TAG, "Socket accepted ip address: %s", addr_str);
 
-        do_retransmit(sock);
+        send_camera_task();
 
         shutdown(sock, 0);
         close(sock);
