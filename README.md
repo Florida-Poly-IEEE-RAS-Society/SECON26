@@ -1,4 +1,4 @@
-# SECON25 - IEEE SoutheastCon 2026 Hardware Competition
+# SECON26 - IEEE SoutheastCon 2026 Hardware Competition
 Repository for the Florida Polytechnic's IEEE SoutheastCon 2026 Hardware Competition, showcasing an autonomous robot and micro UAV system designed for the Lunar Rescue Mission set in the year 2075. This project details the development of a system engineered to compete in a lunar themed challenge involving rescue and communication tasks.
 
 ## Competition Overview
