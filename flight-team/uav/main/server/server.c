@@ -77,7 +77,7 @@ static void send_camera_task() {
         ESP_LOGI(TAG, "Image length: %d", fb->len);
 
         int written = send(sock, size_buffer, 4, 0);
-        if (written < 0) {`
+        if (written < 0) {
             ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
             // Failed to retransmit, giving up
             esp_camera_fb_return(fb);
