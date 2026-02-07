@@ -5,4 +5,6 @@ idf_component_register(SRCS
   "server/server.c"
   "Gyro/bno055.c"
   "Wifi/wifi.c"
-  INCLUDE_DIRS ".")
+  "Motor/motor.c"
+  INCLUDE_DIRS "."
+  REQUIRES "esp_timer")
