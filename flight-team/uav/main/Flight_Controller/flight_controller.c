@@ -111,6 +111,11 @@ static inline void clamp0(float *x, float y) {
     if (*x > y) *x = y;
 }
 
+static void pid_reset(struct Pid *p) {
+    p->prev_err = 0.0f;
+    p->setpoint = 0.0f;
+}
+
 static float update_pid_angle(struct Pid *p, float angle, float rate) {
     float err = p->setpoint - angle;
 
@@ -172,6 +177,18 @@ static void flight_task(void* data) {
             set_motor_speed_pcnt(_mh[1], 0); // front left
             set_motor_speed_pcnt(_mh[2], 0); // back right
             set_motor_speed_pcnt(_mh[3], 0); // back left
+
+            for (int i = 0; i < Num_Pid_Types; ++i) pid_reset(&_pid[i]);
+
+            _x_pos = 0.0f;
+            _y_pos = 0.0f;
+            _z_pos = 0.0f;
+
+            _x_vel = 0.0f;
+            _y_vel = 0.0f;
+            _z_vel = 0.0f;
+
+            _throttle = 0.0f;
 
             do {
                 vTaskDelay(500 / portTICK_PERIOD_MS);
