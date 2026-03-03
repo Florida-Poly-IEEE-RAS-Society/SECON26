@@ -57,19 +57,47 @@ static motor_config _cfg[4] = {
 static motor_handler *_mh[4] = {0};
 
 static struct Pid _pid[Num_Pid_Types] = {
-    [Pitch] = (struct Pid){
-    },
     [Roll] = (struct Pid){
+        .kp = 0.4,
+        .ki = 0.3,
+        .kd = 0.1,
+        .integral_limit = 25,
+    },
+    [Pitch] = (struct Pid){
+        .kp = 0.4,
+        .ki = 0.3,
+        .kd = 0.1,
+        .integral_limit = 25,
     },
     [Yaw] = (struct Pid){
+        .kp = 0.7,
+        .ki = 0.09,
+        .kd = 0.0003,
+        .integral_limit = 25,
     },
     [Z_Vel] = (struct Pid) {
+        .kp = 1.0,
+        .ki = 0.377,
+        .kd = 0.377,
+        .integral_limit = 25,
     },
     [X_Pos] = (struct Pid) {
+        .kp = 1.0,
+        .ki = 0.0,
+        .kd = -1.0,
+        .integral_limit = 25,
     },
     [Y_Pos] = (struct Pid) {
+        .kp = 1.0,
+        .ki = 0.0,
+        .kd = -1.0,
+        .integral_limit = 25,
     },
     [Z_Pos] = (struct Pid) {
+        .kp = 1.0,
+        .ki = 0.0,
+        .kd = -1.0,
+        .integral_limit = 25,
     },
 };
 
@@ -178,8 +206,8 @@ static void flight_task(void* data) {
         _y_pos += _y_vel*DT + y_acc*DT*DT/2.0f;
         _z_pos += _z_vel*DT + z_acc*DT*DT/2.0f;
 
-	    _x_vel += x_acc*DT;
-	    _y_vel += y_acc*DT;
+        _x_vel += x_acc*DT;
+        _y_vel += y_acc*DT;
         _z_vel += z_acc*DT;
 
         _pid[Pitch].setpoint = update_pid_rate(&_pid[X_Pos], _x_pos);
