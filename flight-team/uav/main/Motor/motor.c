@@ -103,13 +103,13 @@ uint32_t get_current_duty_cycle(motor_handler* motor_arg) {
 }
 
 esp_err_t set_motor_speed_pcnt(motor_handler* motor_arg, float duty_cycle_pcnt) {
-	if (duty_cycle_pcnt < 0.0 || duty_cycle_pcnt > 1.0) {
+	if (duty_cycle_pcnt < 0.0f || duty_cycle_pcnt > 1.0f) {
 		return ESP_ERR_INVALID_ARG;
 	}
 
-	uint32_t new_speed_ticks = get_max_duty_cycle() * duty_cycle_pcnt;
+	uint32_t new_speed_ticks = (uint32_t)((float)get_max_duty_cycle() * duty_cycle_pcnt);
 
-	return set_motor_speed_pcnt(motor_arg, new_speed_ticks);
+	return set_motor_speed(motor_arg, new_speed_ticks);
 }
 
 float get_duty_cycle_pcnt(motor_handler* motor_arg) {
