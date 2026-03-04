@@ -301,7 +301,11 @@ bool flight_controller_init(void) {
 
     bno055_setExtCrystalUse(true);
 
-    for (int i = 0; i < 4; ++i) _mh[i] = init_motor(&_cfg[i]);
+    for (int i = 0; i < 4; ++i) {
+        gpio_reset_pin(_cfg[i].pin);
+        gpio_set_direction(_cfg[i].pin, GPIO_MODE_OUTPUT);
+        _mh[i] = init_motor(&_cfg[i]);
+    }
 
     xTaskCreate(flight_task, "flight_controller", 4096, NULL, configMAX_PRIORITIES-1, NULL);
 
