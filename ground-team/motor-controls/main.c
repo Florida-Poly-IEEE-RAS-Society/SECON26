@@ -76,12 +76,6 @@ int main(void) {
     return 1;
 
   forward(1.0f);
-  backward(1.0f);
-  spin_180();
-  spin_360();
-  pattern_square(1.0f);
-  pattern_circle();
-  pattern_figure8();
 
   motors_cleanup(&m1, &m2);
   return 0;
