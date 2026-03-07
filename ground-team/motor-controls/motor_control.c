@@ -1,6 +1,7 @@
 #include "motor_control.h"
+#include <time.h>
 
-int motors_init(motor_t *m1, motor_t *m2) {
+status_t motors_init(motor_t *m1, motor_t *m2) {
   int handle = lgGpiochipOpen(0);
   if (handle < 0) {
     fprintf(stderr, "Failed to open GPIO chip: %s\n", lguErrorText(handle));
@@ -62,12 +63,10 @@ void motors_drive_distance(motor_t *m1, motor_t *m2, float feet) {
   motor_set(m2, MOTOR_STOP);
 }
 
-void motors_spin(motor_t *m1, motor_t *m2, float degrees) {
+void motors_spin(motor_t *m1, motor_t *m2, imu_t *imu, float degrees) {
   int clockwise = degrees >= 0;
   if (degrees < 0)
     degrees = -degrees;
-
-  unsigned int us = (unsigned int)((degrees / 360.0f) * SECS_PER_360 * 1e6f);
 
   if (clockwise) {
     motor_set(m1, MOTOR_FORWARD);
@@ -77,9 +76,34 @@ void motors_spin(motor_t *m1, motor_t *m2, float degrees) {
     motor_set(m2, MOTOR_FORWARD);
   }
 
-  usleep(us);
+  float turned = 0.0f;
+  struct timespec prev, now;
+  clock_gettime(CLOCK_MONOTONIC, &prev);
+
+  while (turned < degrees) {
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    float dt =
+        (now.tv_sec - prev.tv_sec) + (now.tv_nsec - prev.tv_nsec) * 1e-9f;
+    prev = now;
+
+    float gz;
+    if (imu_read_gyro_z(imu, &gz) != OK)
+      break;
+    turned += (gz < 0 ? -gz : gz) * dt;
+
+    usleep(2000);
+  }
+
   motor_set(m1, MOTOR_STOP);
   motor_set(m2, MOTOR_STOP);
+}
+
+void motors_turn_right(motor_t *m1, motor_t *m2, imu_t *imu) {
+  motors_spin(m1, m2, imu, 90.0f);
+}
+
+void motors_turn_left(motor_t *m1, motor_t *m2, imu_t *imu) {
+  motors_spin(m1, m2, imu, -90.0f);
 }
 
 void motors_cleanup(motor_t *m1, motor_t *m2) {
