@@ -14,7 +14,7 @@
 #include <stdlib.h>
 
 // because of bdc_pwm fuckery we gotta set this to a pin that won't be used
-#define ARBITRARY_PIN 5
+#define ARBITRARY_PIN 2
 
 #define BDC_MCPWM_TIMER_RESOLUTION_HZ 10000000 // 10MHz, 1 tick = 0.1us
 #define BDC_MCPWM_FREQ_HZ             25000    // 25KHz PWM
