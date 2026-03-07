@@ -14,7 +14,7 @@
 #include <stdlib.h>
 
 // because of bdc_pwm fuckery we gotta set this to a pin that won't be used
-#define ARBITRARY_PIN 5
+#define ARBITRARY_PIN 2
 
 #define BDC_MCPWM_TIMER_RESOLUTION_HZ 10000000 // 10MHz, 1 tick = 0.1us
 #define BDC_MCPWM_FREQ_HZ             25000    // 25KHz PWM
@@ -103,13 +103,12 @@ uint32_t get_current_duty_cycle(motor_handler* motor_arg) {
 }
 
 esp_err_t set_motor_speed_pcnt(motor_handler* motor_arg, float duty_cycle_pcnt) {
-	if (duty_cycle_pcnt < 0.0 || duty_cycle_pcnt > 1.0) {
-		return ESP_ERR_INVALID_ARG;
-	}
+    if (duty_cycle_pcnt < 0.0f) duty_cycle_pcnt = 0.0f;
+    else if (duty_cycle_pcnt > 1.0f) duty_cycle_pcnt = 1.0f;
 
-	uint32_t new_speed_ticks = get_max_duty_cycle() * duty_cycle_pcnt;
+	uint32_t new_speed_ticks = (uint32_t)((float)get_max_duty_cycle() * duty_cycle_pcnt);
 
-	return set_motor_speed_pcnt(motor_arg, new_speed_ticks);
+	return set_motor_speed(motor_arg, new_speed_ticks);
 }
 
 float get_duty_cycle_pcnt(motor_handler* motor_arg) {

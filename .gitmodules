@@ -1,0 +1,3 @@
+[submodule "flight-team/tools/tcp-connection-debug/UAV_Computer_Vision"]
+	path = flight-team/tools/tcp-connection-debug/UAV_Computer_Vision
+	url = https://github.com/Florida-Poly-IEEE-RAS-Society/UAV-Computer-Vision.git

@@ -43,7 +43,7 @@ esp_err_t Camera_init(void) {
         .pin_pwdn = PWDN_GPIO_NUM,
         .pin_reset = RESET_GPIO_NUM,
         .xclk_freq_hz = 20000000,
-        .frame_size = FRAMESIZE_240X240,//FRAMESIZE_UXGA,
+        .frame_size = FRAMESIZE_QXGA,
         .pixel_format = PIXFORMAT_JPEG, // for streaming
         .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
         .fb_location = CAMERA_FB_IN_PSRAM,
