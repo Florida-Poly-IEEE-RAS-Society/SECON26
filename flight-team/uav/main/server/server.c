@@ -263,6 +263,11 @@ static void serve_command(int sock) {
         };
         send(sock, data, sizeof(data), 0);
     } break;
+    case SAVE_PID: {
+        bool ok = save_pid_parameters();
+        uint8_t data = (uint8_t)ok;
+        send(sock, &data, sizeof(data), 0);
+    } break;
     }
 }
 
