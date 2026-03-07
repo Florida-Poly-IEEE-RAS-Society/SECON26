@@ -5,9 +5,9 @@
 #include "server/server.h"
 
 void app_main(void) {
+    flight_controller_init();
     Camera_init();
     wifi_init();
     server_init();
-    flight_controller_init();
     game_controller_init();
 }

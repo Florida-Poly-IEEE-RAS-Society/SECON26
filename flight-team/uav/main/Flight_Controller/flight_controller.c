@@ -416,6 +416,13 @@ bool set_pid_parameters(void) {
 }
 
 bool flight_controller_init(void) {
+    for (int i = 0; i < 4; ++i) {
+        gpio_reset_pin(_cfg[i].pin);
+        gpio_set_direction(_cfg[i].pin, GPIO_MODE_OUTPUT);
+    }
+    
+    for (int i = 0; i < 4; ++i) _mh[i] = init_motor(&_cfg[i]);
+
     bool ok = bno055_begin(GYRO_ID, OPERATION_MODE_NDOF, BNO055_ADDRESS_A);
     if (!ok) {
         printf("Gyro not found");
@@ -444,24 +451,19 @@ bool flight_controller_init(void) {
     /*     vTaskDelay(125 / portTICK_PERIOD_MS); */
     /* } */
 
-    for (int i = 0; i < 4; ++i) {
-        gpio_reset_pin(_cfg[i].pin);
-        gpio_set_direction(_cfg[i].pin, GPIO_MODE_OUTPUT);
-        _mh[i] = init_motor(&_cfg[i]);
+
+    while (true) {
+        set_motor_speed(_mh[0], 50); // front right
+        set_motor_speed(_mh[1], 50); // front left
+        set_motor_speed(_mh[2], 50); // back right
+        set_motor_speed(_mh[3], 50); // back left
+
+        vTaskDelay(500 / portTICK_PERIOD_MS);
     }
-
-    /* while (true) { */
-    /*     set_motor_speed(_mh[0], 400); // front right */
-    /*     set_motor_speed(_mh[1], 400); // front left */
-    /*     set_motor_speed(_mh[2], 400); // back right */
-    /*     set_motor_speed(_mh[3], 400); // back left */
-
-    /*     vTaskDelay(500 / portTICK_PERIOD_MS); */
-    /* } */
 
     set_pid_parameters();
 
-    xTaskCreate(flight_task, "flight_controller", 4096, NULL, configMAX_PRIORITIES-1, NULL);
+    /* xTaskCreate(flight_task, "flight_controller", 4096, NULL, configMAX_PRIORITIES-1, NULL); */
 
     return true;
 }
