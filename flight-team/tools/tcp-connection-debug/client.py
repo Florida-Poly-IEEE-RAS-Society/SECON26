@@ -1,13 +1,17 @@
 import logging
 import socket
 from enum import Enum
-import struct
 
 
 class MessageType(Enum):
     CAMERA_DATA = 1
+    LAUNCH = 2
+    RETREIVE = 3
+    TRANSMISSION_CODES = 4
+    POS = 5
     STOP = 6
     THRUST = 7
+    THRUST_CONTROL_MODE = 8
     PITCH = 9
     ROLL = 10
     YAW = 11
@@ -16,7 +20,10 @@ class MessageType(Enum):
     SET_Y = 14
     SET_PID = 15
     GET_PID = 16
+    SAVE_PID = 17
     GYRO_CALIBRATION_STATUS = 18
+    GET_GAME_STATE = 19
+    POS_VEL = 20
 
 
 class DebugClient:
@@ -57,18 +64,7 @@ class DebugClient:
 
         return data
 
-    # just decide in the handlers what to do when not ok
-    def wait_for_ok(self) -> int:
-        response = self.receive_n_bytes(1)
-        response = MessageType(response)
-
-        if response == MessageType.OK:
-            return 0
-
-        logging.error("Error response from server!!!!")
-        return -1
-
-    def handle(self, msg_type: MessageType, args: dict):
+    def handle(self, msg_type: MessageType, args: dict | None):
         handler = self.handlers.get(msg_type)
         if not handler:
             logging.error(f"handler {msg_type} not registered")

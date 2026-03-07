@@ -51,6 +51,38 @@ def handle_camera(client: DebugClient):
     logging.info(f"Image saved to {output_image_file}")
 
 
+def handle_launch(client: DebugClient):
+    # no data sent from server here to handle
+    pass
+
+
+def handle_retreive(client: DebugClient):
+    # no data sent from server here to handle
+    pass
+
+
+def handle_transmission_codes(client: DebugClient, args):
+    payload = b''
+    for i in range(4):
+        address_i = int(args.get(f"address_{i+1}"))
+        command_i = int(args.get(f"command_{i+1}"))
+
+        payload += struct.pack("<hh", address_i, command_i)
+
+    client.send_payload(payload)
+
+
+def handle_pos(client: DebugClient, args):
+    uav_x = float(args.get("uav_x"))
+    uav_y = float(args.get("uav_y"))
+    bot_x = float(args.get("bot_x"))
+    bot_y = float(args.get("bot_y"))
+
+    payload = struct.pack("<ffff", uav_x, uav_y, bot_x, bot_y)
+
+    client.send_payload(payload)
+
+
 def handle_stop(client: DebugClient):
     # no data sent from server here to handle
     pass
@@ -59,9 +91,16 @@ def handle_stop(client: DebugClient):
 def handle_thrust(client: DebugClient, args):
     thrust = float(args.get("thrust"))
 
-    # apparently its all big endian so I gotta do this ugly
+    # apparently its all little endian so I gotta do this ugly
     # piece of shit function everytime I encode into bytes :(
     client.send_payload(struct.pack("<f", thrust))
+
+
+def handle_thrust_control_mode(client: DebugClient, args):
+    thrust_control_mode = int(
+        args.get("thrust_control_mode")).to_bytes(1, 'little')
+
+    client.send_payload(thrust_control_mode)
 
 
 def handle_pitch(client: DebugClient, args):
@@ -101,8 +140,8 @@ def handle_set_y(client: DebugClient, args):
 
 
 def handle_set_pid(client: DebugClient, args):
-    pid_idx = int(args.get("pid_idx")).to_bytes(1, 'big')
-    param_idx = int(args.get("param_idx")).to_bytes(1, 'big')
+    pid_idx = int(args.get("pid_idx")).to_bytes(1, 'little')
+    param_idx = int(args.get("param_idx")).to_bytes(1, 'little')
     value = float(args.get("value"))
 
     # chars because bytes have weird behavior in structs
@@ -111,17 +150,50 @@ def handle_set_pid(client: DebugClient, args):
     client.send_payload(payload)
 
 
-def handle_get_pid(client: DebugClient):
+def handle_get_pid(client: DebugClient, args):
+    pid_idx = int(args.get("pid_idx")).to_bytes(1, 'little')
+    param_idx = int(args.get("param_idx")).to_bytes(1, 'little')
+
+    payload = struct.pack("<cc", pid_idx, param_idx)
+
+    client.send_payload(payload)
+
     pid = struct.unpack('<f', client.receive_n_bytes(4))
 
     logging.info(f"Current PID value : {pid}")
 
 
+def handle_save_pid(client: DebugClient):
+    result = int.from_bytes(client.receive_n_bytes(1), 'little')
+
+    if result == 1:
+        logging.info("PID saved successfully")
+    elif result == 0:
+        logging.info("PID not saved successfully... but why?")
+    else:
+        logging.error("SOMETHING IS WRONG")
+
+
 def handle_gyro_calibration_status(client: DebugClient):
-    system = int.from_bytes(client.receive_n_bytes(1), 'big')
-    gyro = int.from_bytes(client.receive_n_bytes(1), 'big')
-    accel = int.from_bytes(client.receive_n_bytes(1), 'big')
-    mag_calibration_status = int.from_bytes(client.receive_n_bytes(1), 'big')
+    system = int.from_bytes(client.receive_n_bytes(1), 'little')
+    gyro = int.from_bytes(client.receive_n_bytes(1), 'little')
+    accel = int.from_bytes(client.receive_n_bytes(1), 'little')
+    mag_calibration_status = int.from_bytes(
+        client.receive_n_bytes(1), 'little')
 
     logging.info(f"Gyro Calibration Status: System: {system}, Gyro: {
                  gyro}, Acceleration: {accel}, Magnet Calibration Status {mag_calibration_status}")
+
+
+def handle_get_game_state(client: DebugClient):
+    game_state = int.from_bytes(client.receive_n_bytes(1), 'little')
+
+    logging.info(f"Current game state: {game_state}")
+
+
+def handle_pos_vel(client: DebugClient):
+    x_pos, y_pos, z_pos, x_vel, y_vel, z_vel = struct.unpack(
+        "<ffffff", client.receive_n_bytes(24))
+
+    logging.info(f"Pos Vel: pos: [{x_pos}, {y_pos}, {
+                 z_pos}], vel: [{x_vel}, {y_vel}, {z_vel}]")
