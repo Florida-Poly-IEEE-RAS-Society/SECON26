@@ -1,169 +1,116 @@
-import os
-import time
-import UAV_Computer_Vision.field_detection as fd
-import cv2 as cv
-import io
-from PIL import Image
-import numpy as np
-from pathlib import Path
-import socket
-from enum import Enum
-import logging
-import sys
+import cli
+from client import MessageType, DebugClient
+import handlers
 
-cv_module_path = Path("./UAV_Computer_Vision/")
-sys.path.insert(1, cv_module_path)
+import logging
+
 
 logging.basicConfig(
+    # filename=Path("./log.log"),
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-output_image_file = Path("./output.jpg")
 
-REQUEST_DELAY = 2000
+HOST = '192.168.4.1'
+PORT = 3333
 
+"""
+format for registering command:
+name: [
+    handler,
+    help message,
+    arg list,
+    message type (can be none)
+]
+found out about argparsing library that couldve made this a whole
+lot cleaner and easier to program but we dont make good decisions here
+"""
+cli_commands = {
+    "camera": [
+        handlers.handle_camera,
+        "Pulls camera data from server, applies colormask and outputs to output.jpg",
+        [],
+        MessageType.CAMERA_DATA
+    ],
+    "stop": [
+        handlers.handle_stop,
+        "Emergency stops the drone",
+        [],
+        MessageType.STOP
+    ],
+    "thrust": [
+        handlers.handle_thrust,
+        "Sets the thrust",
+        ["thrust"],
+        MessageType.THRUST
+    ],
+    "pitch": [
+        handlers.handle_pitch,
+        "Sets the pitch",
+        ["pitch"],
+        MessageType.PITCH
+    ],
+    "roll": [
+        handlers.handle_roll,
+        "Sets the roll",
+        ["roll"],
+        MessageType.ROLL
+    ],
+    "yaw": [
+        handlers.handle_yaw,
+        "Sets the yaw",
+        ["yaw"],
+        MessageType.YAW
+    ],
+    "set_height": [
+        handlers.handle_set_height,
+        "Sets the height delta of the drone",
+        ["height"],
+        MessageType.SET_HEIGHT
+    ],
+    "set_x": [
+        handlers.handle_set_x,
+        "Sets the relative x coordinate of the drone",
+        ["x"],
+        MessageType.SET_X
+    ],
+    "set_y": [
+        handlers.handle_set_y,
+        "Sets the relative y coordinate of the drone",
+        ["y"],
+        MessageType.SET_Y
+    ],
+    "set_pid": [
+        handlers.handle_set_pid,
+        "Sets the pid values of the drone",
+        ["pid_idx", "param_idx", "value"],
+        MessageType.SET_PID
+    ]
+}
 
-class MessageType(Enum):
-    CAMERA_DATA = 1
-    LAUNCH = 2
-    RETRIEVE = 3
-    TRANSMISSION_CODES = 4
-    POS = 5
-    STOP = 6
-
-
-class DebugClient:
-    def __init__(self, host: str, port: int):
-        self.host = host
-        self.port = port
-        self.sock = None
-        self.handlers = {}
-
-    def connect(self):
-        self.sock = socket.create_connection((self.host, self.port))
-        logging.debug(f"Connected to {self.host}:{self.port}")
-
-    def close(self):
-        if not self.sock:
-            return
-
-        self.sock.close()
-        logging.debug(f"Connection to {self.host}:{self.port} closed")
-
-    def register_handler(self, msg_type: MessageType, handler: callable):
-        self.handlers[msg_type] = handler
-
-    def send_request(self, msg_type: MessageType):
-        self.sock.sendall(bytes(msg_type.value))
-
-    def receive_n_bytes(self, n: int) -> bytes:
-        data = b""
-        while len(data) < n:
-            buf = self.sock.recv(n - len(data))
-            if len(buf) == 0:
-                logging.warning("Connection closed unexpectedly")
-
-            data += buf
-
-        return data
-
-    # just decide in the handlers what to do when not ok
-    def wait_for_ok(self) -> int:
-        response = self.receive_n_bytes(1)
-        response = MessageType(response)
-
-        if response == MessageType.OK:
-            return 0
-
-        logging.error("Error response from server!!!!")
-        return -1
-
-    def handle(self, msg_type: MessageType):
-        handler = self.handlers.get(msg_type)
-        handler(self)  # man I love python
-
-
-def downscale_image(image: cv.UMat) -> cv.UMat:
-    img = Image.fromarray(image)
-    new_width = img.size[0] // 3
-    new_height = img.size[1] // 3
-    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-    return np.array(img)
-
-
-def handle_camera(client: DebugClient):
-    client.send_request(MessageType.CAMERA_DATA)
-    logging.debug("getting image")
-    size = int.from_bytes(client.receive_n_bytes(4))
-    payload = client.receive_n_bytes(size)
-
-    image = np.frombuffer(payload, dtype=np.uint8)
-    image_decoded = cv.imdecode(image, cv.IMREAD_COLOR)
-    image_downscaled = downscale_image(image_decoded)
-
-    computer_vision_result = fd.recompute_display(image_downscaled, image_decoded)
-    cv.imwrite(output_image_file, computer_vision_result)
-
-    logging.info(f"Image saved to {output_image_file}")
+# Arg: 1 float
+# Thrust, pitch, roll, yaw, set_height, set_x, set_y
+#
+# Arg: 1 byte, 1 byte, 1 float
+# Set_pid
 
 
-def handle_launch(client: DebugClient):
-    client.send_request(MessageType.LAUNCH)
-    #something else 
+def register_cli_commands(client: DebugClient):
+    for k, v in cli_commands.items():
+        # dont register client if no msg_type
+        if v[3] is None:
+            cli.regiser_command(k, v[0], v[1], v[2])
+            continue
 
-
-def handle_retreive(client: DebugClient):
-    client.send_request(MessageType.RETRIEVE)
-    #something else 
-
-def handle_transmission_codes(client: DebugClient):
-    client.send_request(MessageType.TRANSMISSION_CODES)
-    #something else 
-
-
-def handle_pos(client: DebugClient):
-    client.send_request(MessageType.POS)
-    #something else 
-
-
-def get_that_stuff(client: DebugClient):
-    while True:
-        client.connect()
-        logging.debug("Starting Camera")
-        client.handle(MessageType.CAMERA_DATA)
-        client.close()
-
-        client.connect()
-        logging.debug("Starting Launch")
-        client.handle(MessageType.LAUNCH)
-        client.close()
-
-        client.connect()
-        logging.debug("Starting Retreive")
-        client.handle(MessageType.RETRIEVE)
-        client.close()
-
-        client.connect()
-        logging.debug("Starting Transmission Codes")
-        client.handle(MessageType.TRANSMISSION_CODES)
-        client.close()
-
-        client.connect()
-        logging.debug("Starting Pos")
-        client.handle(MessageType.POS)
-        client.close()
-
-        time.sleep(REQUEST_DELAY)
+        cli.regiser_command(k, v[0], v[1], v[2], client, v[3])
 
 
 if __name__ == '__main__':
-    client = DebugClient('localhost', 5000)
+    client = DebugClient(HOST, PORT)
 
-    client.register_handler(MessageType.CAMERA_DATA, handle_camera)
-    client.register_handler(MessageType.LAUNCH, handle_launch)
-    client.register_handler(MessageType.RETRIEVE, handle_retreive)
-    client.register_handler(MessageType.TRANSMISSION_CODES, handle_transmission_codes)
-    client.register_handler(MessageType.POS, handle_pos)
+    client.register_handler(MessageType.CAMERA_DATA, handlers.handle_camera)
 
-    get_that_stuff(client)
+    register_cli_commands(client)
+
+    cli.start()
