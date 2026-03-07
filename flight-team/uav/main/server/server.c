@@ -1,6 +1,6 @@
 #include <string.h>
 #include "esp_log.h"
-#include "../Camera/camera.h"
+#include "commands.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -9,92 +9,50 @@
 
 #define PORT 3333
 
+enum Command {
+    /*
+    IMAGE command
+    header: no header
+    response: a 4 byte size, then the image data
+    On error taking image: a size of 0 followed by no data
+    */
+    IMAGE = 1,
+    LAUNCH = 2,
+    RETRIEVE = 3,
+    TRANSMISSION_CODES = 4,
+    POS = 5,
+    STOP = 6
+};
+
 static const char *TAG = "TCP_SERVER";
 
-int sock;
-
-static void do_retransmit(const int sock)
-{
-    int len;
-    char rx_buffer[128];
-
-    do {
-        len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
-        if (len < 0) {
-            ESP_LOGE(TAG, "Error occurred during receiving: errno %d", errno);
-        } else if (len == 0) {
-            ESP_LOGW(TAG, "Connection closed");
-        } else {
-            rx_buffer[len] = 0; // Null-terminate whatever is received and treat it like a string
-            ESP_LOGI(TAG, "Received %d bytes: %s", len, rx_buffer);
-
-            // send() can return less bytes than supplied length.
-            // Walk-around for robust implementation.
-            int to_write = len;
-            while (to_write > 0) {
-                int written = send(sock, rx_buffer + (len - to_write), to_write, 0);
-                if (written < 0) {
-                    ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-                    // Failed to retransmit, giving up
-                    return;
-                }
-                to_write -= written;
-            }
-        }
-    } while (len > 0);
-}
-
-static void send_numbers(const int sock) {
-    char rx_buffer[128];
-    while (1) {
-        for (char c = '0'; c < '9'; c++) {
-            rx_buffer[0] = c;
-            int written = send(sock, rx_buffer, 1, 0);
-            if (written < 0) {
-                ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-                // Failed to retransmit, giving up
-                return;
-            }
-
-            vTaskDelay(100 / portTICK_PERIOD_MS);
-        }
+static void serve_command(int sock) {
+    char command;
+    int length = recv(sock, &command, 1, MSG_WAITALL);
+    if (length != 1) {
+        ESP_LOGE(TAG, "Error occurred while reading command: errno %d", errno);
+        return;
     }
-}
 
-static void send_camera_task() {
-    while (1) {
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-        camera_fb_t *fb = esp_camera_fb_get();
-        if (fb == NULL) {
-            continue;
-        }
-
-        char size_buffer[4];
-        for (uint32_t i = 0; i < 4; i++) {
-            size_buffer[4-i-1] = ((uint32_t)(fb->len)) >> (i*8) & (0xFF);
-        }
-
-        ESP_LOGI(TAG, "Image length: %d", fb->len);
-
-        int written = send(sock, size_buffer, 4, 0);
-        if (written < 0) {
-            ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-            // Failed to retransmit, giving up
-            esp_camera_fb_return(fb);
-
-            return;
-        }
-
-        written = send(sock, fb->buf, fb->len, 0);
-        if (written < 0) {
-            ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-            // Failed to retransmit, giving up
-            esp_camera_fb_return(fb);
-
-            return;
-        }
-        esp_camera_fb_return(fb);
-
+    switch (command) {
+        case IMAGE:
+            command_image(sock);
+            break;
+        case LAUNCH:
+            command_launch(sock);
+            break;
+        case RETRIEVE:
+            command_retrieve(sock);
+            break;
+        case TRANSMISSION_CODES:
+            command_transmission_codes(sock);
+            break;
+        case POS:
+            command_pos(sock);
+            break;
+        case STOP:
+            command_stop(sock);
+            break;
     }
 }
 
@@ -148,7 +106,7 @@ static void tcp_server_task(void *pvParameters)
 
         struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
         socklen_t addr_len = sizeof(source_addr);
-        sock = accept(listen_sock, (struct sockaddr *)&source_addr, &addr_len);
+        int sock = accept(listen_sock, (struct sockaddr *)&source_addr, &addr_len);
         if (sock < 0) {
             ESP_LOGE(TAG, "Unable to accept connection: errno %d", errno);
             break;
@@ -167,7 +125,7 @@ static void tcp_server_task(void *pvParameters)
 
         ESP_LOGI(TAG, "Socket accepted ip address: %s", addr_str);
 
-        send_camera_task();
+        serve_command(sock);
 
         shutdown(sock, 0);
         close(sock);
