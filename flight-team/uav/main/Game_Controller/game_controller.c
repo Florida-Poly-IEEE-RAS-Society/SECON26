@@ -90,17 +90,9 @@ void retrieve(void) {
 }
 
 void calibrate(void) {
-    uint8_t system, gyro, accel, mag = 0;
-    do {
-        bno055_getCalibration(&system, &gyro, &accel, &mag);
-        sensors_event_t ev;
-        bno055_getEvent2(&ev, VECTOR_EULER);
-        printf("Gyro: roll: %f, pitch: %f, yaw: %f\n", ev.orientation.z, ev.orientation.y, ev.orientation.x);
-        printf("Cali: gyro: %d, accel: %d, mag: %d, system: %d\n", gyro, accel, mag, system);
-        vTaskDelay(250 / portTICK_PERIOD_MS);
-    } while (!(system == 3 && gyro == 3 && accel == 3 && mag == 3));
-    
-    printf("Gyro Calibrated!\n");
+    while (!save_gyro_calibration_data()) {
+        vTaskDelay(125 / portTICK_PERIOD_MS);
+    }
 }
 
 static void game_task(void* p) {

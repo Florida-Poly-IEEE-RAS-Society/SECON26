@@ -97,6 +97,12 @@ enum Command {
   */
   GET_PID,
   /*
+  SAVE_PID command
+  header: none 
+  response: 1 byte (1 if saved pid parameters, 0 if it failed)
+  */
+  SAVE_PID,
+  /*
   GYRO_CALIBRATION_STATUS command
   header: no header
   response: 4 bytes (system, gyro, accel, mag calibration status)

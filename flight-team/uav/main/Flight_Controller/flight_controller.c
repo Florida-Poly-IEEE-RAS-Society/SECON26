@@ -7,6 +7,7 @@
 #include <driver/gpio.h>
 #include <Gyro/bno055.h>
 #include <stdint.h>
+#include "nvs.h"
 
 #define DT (0.01f)
 #define SLEEP_TIME (DT*1000.0f)
@@ -19,6 +20,13 @@
 
 #define METER_PER_INCH (0.0254f)
 #define RAD_PER_DEG (3.141592654f / 180.0f)
+
+#define NVS_BNO055_NAMESPACE "bno055"
+#define NVS_BNO055_CAL_KEY   "cal_offsets"
+
+#define NVS_PID_NAMESPACE "pid"
+#define NVS_PID_PARAMS_KEY "pid_kp_ki_kd"
+#define PID_STORAGE_SIZE (Num_Pid_Types * 3)  /* kp, ki, kd per PID */
 
 struct Pid {
     union {
@@ -334,6 +342,79 @@ float get_x_vel(void) { return _x_vel; }
 float get_y_vel(void) { return _y_vel; }
 float get_z_vel(void) { return _z_vel; }
 
+bool save_gyro_calibration_data(void) {
+    bno055_offsets_t offsets;
+    if (!bno055_getSensorOffsets2(&offsets)) {
+        return false; /* sensor not fully calibrated, nothing to save */
+    }
+    nvs_handle_t handle;
+    if (nvs_open(NVS_BNO055_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) {
+        return false;
+    }
+    esp_err_t err = nvs_set_blob(handle, NVS_BNO055_CAL_KEY, &offsets, sizeof(offsets));
+    if (err == ESP_OK) {
+        nvs_commit(handle);
+    }
+    nvs_close(handle);
+
+    return true;
+}
+
+bool set_gyro_calibration_data(void) {
+    nvs_handle_t handle;
+    if (nvs_open(NVS_BNO055_NAMESPACE, NVS_READONLY, &handle) != ESP_OK) {
+        return false; /* no saved calibration or NVS not available */
+    }
+    bno055_offsets_t offsets;
+    size_t len = sizeof(offsets);
+    if (nvs_get_blob(handle, NVS_BNO055_CAL_KEY, &offsets, &len) == ESP_OK && len == sizeof(offsets)) {
+        bno055_setSensorOffsets4(&offsets);
+    }
+    nvs_close(handle);
+
+    return true;
+}
+
+bool save_pid_parameters(void) {
+    float buf[PID_STORAGE_SIZE];
+    for (int i = 0; i < Num_Pid_Types; i++) {
+        buf[i * 3 + 0] = _pid[i].kp;
+        buf[i * 3 + 1] = _pid[i].ki;
+        buf[i * 3 + 2] = _pid[i].kd;
+    }
+    nvs_handle_t handle;
+    if (nvs_open(NVS_PID_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) {
+        return false;
+    }
+    esp_err_t err = nvs_set_blob(handle, NVS_PID_PARAMS_KEY, buf, sizeof(buf));
+    if (err == ESP_OK) {
+        nvs_commit(handle);
+    }
+    nvs_close(handle);
+
+    return true;
+}
+
+bool set_pid_parameters(void) {
+    nvs_handle_t handle;
+    if (nvs_open(NVS_PID_NAMESPACE, NVS_READONLY, &handle) != ESP_OK) {
+        return false;
+    }
+    float buf[PID_STORAGE_SIZE];
+    size_t len = sizeof(buf);
+    if (nvs_get_blob(handle, NVS_PID_PARAMS_KEY, buf, &len) != ESP_OK || len != sizeof(buf)) {
+        nvs_close(handle);
+        return false;
+    }
+    for (int i = 0; i < Num_Pid_Types; i++) {
+        _pid[i].kp = buf[i * 3 + 0];
+        _pid[i].ki = buf[i * 3 + 1];
+        _pid[i].kd = buf[i * 3 + 2];
+    }
+    nvs_close(handle);
+    return true;
+}
+
 bool flight_controller_init(void) {
     bool ok = bno055_begin(GYRO_ID, OPERATION_MODE_NDOF, BNO055_ADDRESS_A);
     if (!ok) {
@@ -342,6 +423,10 @@ bool flight_controller_init(void) {
     }
     
     bno055_setExtCrystalUse(true);
+
+    // wait a little bit for it to start up. Is this enough?
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
+    set_gyro_calibration_data();
     
     /* while (true) { */
     /*     sensors_event_t orient_ev; */
@@ -364,6 +449,17 @@ bool flight_controller_init(void) {
         gpio_set_direction(_cfg[i].pin, GPIO_MODE_OUTPUT);
         _mh[i] = init_motor(&_cfg[i]);
     }
+
+    /* while (true) { */
+    /*     set_motor_speed(_mh[0], 400); // front right */
+    /*     set_motor_speed(_mh[1], 400); // front left */
+    /*     set_motor_speed(_mh[2], 400); // back right */
+    /*     set_motor_speed(_mh[3], 400); // back left */
+
+    /*     vTaskDelay(500 / portTICK_PERIOD_MS); */
+    /* } */
+
+    set_pid_parameters();
 
     xTaskCreate(flight_task, "flight_controller", 4096, NULL, configMAX_PRIORITIES-1, NULL);
 
