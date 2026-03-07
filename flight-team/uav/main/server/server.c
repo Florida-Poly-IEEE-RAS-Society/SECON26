@@ -97,6 +97,12 @@ enum Command {
   */
   GET_PID,
   /*
+  SAVE_PID command
+  header: none 
+  response: 1 byte (1 if saved pid parameters, 0 if it failed)
+  */
+  SAVE_PID,
+  /*
   GYRO_CALIBRATION_STATUS command
   header: no header
   response: 4 bytes (system, gyro, accel, mag calibration status)
@@ -256,6 +262,11 @@ static void serve_command(int sock) {
             get_x_vel(), get_y_vel(), get_z_vel(),
         };
         send(sock, data, sizeof(data), 0);
+    } break;
+    case SAVE_PID: {
+        bool ok = save_pid_parameters();
+        uint8_t data = (uint8_t)ok;
+        send(sock, &data, sizeof(data), 0);
     } break;
     }
 }
