@@ -4,7 +4,10 @@
 #include <math.h>
 
 #include <Motor/motor.h>
+#include <driver/gpio.h>
 #include <Gyro/bno055.h>
+#include <stdint.h>
+#include "nvs.h"
 
 #define DT (0.01f)
 #define SLEEP_TIME (DT*1000.0f)
@@ -18,21 +21,30 @@
 #define METER_PER_INCH (0.0254f)
 #define RAD_PER_DEG (3.141592654f / 180.0f)
 
-struct Pid {
-    float kp;
-    float ki;
-    float kd;
+#define NVS_BNO055_NAMESPACE "bno055"
+#define NVS_BNO055_CAL_KEY   "cal_offsets"
 
+#define NVS_PID_NAMESPACE "pid"
+#define NVS_PID_PARAMS_KEY "pid_kp_ki_kd"
+#define PID_STORAGE_SIZE (Num_Pid_Types * 3)  /* kp, ki, kd per PID */
+
+struct Pid {
+    union {
+        float params[4];
+        struct {
+            float kp;
+            float ki;
+            float kd;
+            float setpoint;
+        };
+    };
+    
     float integral;
     float prev_err;
-
-    float setpoint;
     float integral_limit;
 };
 
-enum Pid_Type {
-    Roll, Pitch, Yaw, Z_Vel, X_Pos, Y_Pos, Z_Pos, Num_Pid_Types
-};
+static bool _direct_throttle = false;
 
 // meter/second
 static float _x_vel = 0.0f;
@@ -207,9 +219,9 @@ static void flight_task(void* data) {
         bno055_getEvent2(&orient_ev, VECTOR_EULER); // degree
         bno055_getEvent2(&gyro_ev, VECTOR_GYROSCOPE); // radians/second
         bno055_getEvent2(&accel_ev, VECTOR_LINEARACCEL); // m/s^2 (acceleration - gravity)
-        
-        float roll = orient_ev.orientation.roll * RAD_PER_DEG;
-        float pitch = orient_ev.orientation.pitch * RAD_PER_DEG;
+
+        float roll = orient_ev.orientation.z * RAD_PER_DEG;
+        float pitch = orient_ev.orientation.y * RAD_PER_DEG;
 
         float roll_rate = gyro_ev.gyro.roll;
         float pitch_rate = gyro_ev.gyro.pitch;
@@ -235,7 +247,12 @@ static void flight_task(void* data) {
         clamp(&_pid[Roll].setpoint, 0.3);
         clamp(&_pid[Z_Vel].setpoint, 0.03);
 
-        float t = update_pid_throttle(&_pid[Z_Vel], _z_vel); _throttle = t;
+        float t = _throttle;
+        if (!_direct_throttle) {
+            t = update_pid_throttle(&_pid[Z_Vel], _z_vel);
+            _throttle = t;
+        }
+
         float r = update_pid_angle(&_pid[Roll], roll, roll_rate);
         float p = update_pid_angle(&_pid[Pitch], pitch, pitch_rate);
         float y = update_pid_rate(&_pid[Yaw], yaw_rate);
@@ -292,20 +309,157 @@ void emergency_stop(void) {
     _should_run = false;
 }
 
+bool is_flight_controller_calibrated(void) {
+    uint8_t system, gyro, accel, mag;
+    system = gyro = accel = mag = 0;
+    bno055_getCalibration(&system, &gyro, &accel, &mag);
+    return (gyro == 3) && (accel == 3) && (mag == 3);
+}
+
+void set_throttle(float power) {
+    if (_direct_throttle) {
+        clamp0(&power, 1);
+        _throttle = power;
+    }
+}
+
+void set_thrust_control_mode(bool direct_throttle) {
+    _direct_throttle = direct_throttle;
+}
+
+void set_pid(enum Pid_Type pid_idx, enum Pid_Param_Type param_idx, float value) {
+    _pid[pid_idx].params[param_idx] = value;
+}
+
+float get_pid(enum Pid_Type pid_idx, enum Pid_Param_Type param_idx) {
+    return _pid[pid_idx].params[param_idx];
+}
+
+float get_x_pos(void) { return _x_pos; }
+float get_y_pos(void) { return _y_pos; }
+float get_z_pos(void) { return _z_pos; }
+float get_x_vel(void) { return _x_vel; }
+float get_y_vel(void) { return _y_vel; }
+float get_z_vel(void) { return _z_vel; }
+
+bool save_gyro_calibration_data(void) {
+    bno055_offsets_t offsets;
+    if (!bno055_getSensorOffsets2(&offsets)) {
+        return false; /* sensor not fully calibrated, nothing to save */
+    }
+    nvs_handle_t handle;
+    if (nvs_open(NVS_BNO055_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) {
+        return false;
+    }
+    esp_err_t err = nvs_set_blob(handle, NVS_BNO055_CAL_KEY, &offsets, sizeof(offsets));
+    if (err == ESP_OK) {
+        nvs_commit(handle);
+    }
+    nvs_close(handle);
+
+    return true;
+}
+
+bool set_gyro_calibration_data(void) {
+    nvs_handle_t handle;
+    if (nvs_open(NVS_BNO055_NAMESPACE, NVS_READONLY, &handle) != ESP_OK) {
+        return false; /* no saved calibration or NVS not available */
+    }
+    bno055_offsets_t offsets;
+    size_t len = sizeof(offsets);
+    if (nvs_get_blob(handle, NVS_BNO055_CAL_KEY, &offsets, &len) == ESP_OK && len == sizeof(offsets)) {
+        bno055_setSensorOffsets4(&offsets);
+    }
+    nvs_close(handle);
+
+    return true;
+}
+
+bool save_pid_parameters(void) {
+    float buf[PID_STORAGE_SIZE];
+    for (int i = 0; i < Num_Pid_Types; i++) {
+        buf[i * 3 + 0] = _pid[i].kp;
+        buf[i * 3 + 1] = _pid[i].ki;
+        buf[i * 3 + 2] = _pid[i].kd;
+    }
+    nvs_handle_t handle;
+    if (nvs_open(NVS_PID_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) {
+        return false;
+    }
+    esp_err_t err = nvs_set_blob(handle, NVS_PID_PARAMS_KEY, buf, sizeof(buf));
+    if (err == ESP_OK) {
+        nvs_commit(handle);
+    }
+    nvs_close(handle);
+
+    return true;
+}
+
+bool set_pid_parameters(void) {
+    nvs_handle_t handle;
+    if (nvs_open(NVS_PID_NAMESPACE, NVS_READONLY, &handle) != ESP_OK) {
+        return false;
+    }
+    float buf[PID_STORAGE_SIZE];
+    size_t len = sizeof(buf);
+    if (nvs_get_blob(handle, NVS_PID_PARAMS_KEY, buf, &len) != ESP_OK || len != sizeof(buf)) {
+        nvs_close(handle);
+        return false;
+    }
+    for (int i = 0; i < Num_Pid_Types; i++) {
+        _pid[i].kp = buf[i * 3 + 0];
+        _pid[i].ki = buf[i * 3 + 1];
+        _pid[i].kd = buf[i * 3 + 2];
+    }
+    nvs_close(handle);
+    return true;
+}
+
 bool flight_controller_init(void) {
     bool ok = bno055_begin(GYRO_ID, OPERATION_MODE_NDOF, BNO055_ADDRESS_A);
     if (!ok) {
         printf("Gyro not found");
         return false;
     }
-
+    
     bno055_setExtCrystalUse(true);
+
+    // wait a little bit for it to start up. Is this enough?
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
+    set_gyro_calibration_data();
+    
+    /* while (true) { */
+    /*     sensors_event_t orient_ev; */
+    /*     sensors_event_t gyro_ev; */
+    /*     sensors_event_t accel_ev; */
+    /*     bno055_getEvent2(&orient_ev, VECTOR_EULER); // degree */
+    /*     bno055_getEvent2(&gyro_ev, VECTOR_GYROSCOPE); // radians/second */
+    /*     bno055_getEvent2(&accel_ev, VECTOR_LINEARACCEL); // m/s^2 (acceleration - gravity) */
+        
+    /*     printf("Gyro: roll: %f, pitch: %f, yaw: %f\n", orient_ev.orientation.z, orient_ev.orientation.y, orient_ev.orientation.x); */
+    /*     printf("Gyro: roll_rate: %f, pitch_rate: %f, yaw_rate: %f\n", gyro_ev.gyro.roll, gyro_ev.gyro.pitch, gyro_ev.gyro.heading); */
+    /*     printf("Gyro: acc_x: %f, acc_y: %f, acc_z: %f\n", accel_ev.acceleration.x, accel_ev.acceleration.y, accel_ev.acceleration.z); */
+
+    /*     printf("\n"); */
+    /*     vTaskDelay(125 / portTICK_PERIOD_MS); */
+    /* } */
 
     for (int i = 0; i < 4; ++i) {
         gpio_reset_pin(_cfg[i].pin);
         gpio_set_direction(_cfg[i].pin, GPIO_MODE_OUTPUT);
         _mh[i] = init_motor(&_cfg[i]);
     }
+
+    /* while (true) { */
+    /*     set_motor_speed(_mh[0], 400); // front right */
+    /*     set_motor_speed(_mh[1], 400); // front left */
+    /*     set_motor_speed(_mh[2], 400); // back right */
+    /*     set_motor_speed(_mh[3], 400); // back left */
+
+    /*     vTaskDelay(500 / portTICK_PERIOD_MS); */
+    /* } */
+
+    set_pid_parameters();
 
     xTaskCreate(flight_task, "flight_controller", 4096, NULL, configMAX_PRIORITIES-1, NULL);
 

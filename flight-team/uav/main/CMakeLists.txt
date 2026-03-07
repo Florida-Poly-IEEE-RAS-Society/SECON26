@@ -3,7 +3,6 @@ idf_component_register(SRCS
   "IR/ir.c"
   "Camera/camera.c"
   "server/server.c"
-  "server/commands.c"
   "Gyro/bno055.c"
   "Wifi/wifi.c"
   "Motor/motor.c"
