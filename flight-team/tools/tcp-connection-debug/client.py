@@ -15,6 +15,8 @@ class MessageType(Enum):
     SET_X = 13
     SET_Y = 14
     SET_PID = 15
+    GET_PID = 16
+    GYRO_CALIBRATION_STATUS = 18
 
 
 class DebugClient:

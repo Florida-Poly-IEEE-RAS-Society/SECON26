@@ -110,3 +110,18 @@ def handle_set_pid(client: DebugClient, args):
 
     client.send_payload(payload)
 
+
+def handle_get_pid(client: DebugClient):
+    pid = struct.unpack('<f', client.receive_n_bytes(4))
+
+    logging.info(f"Current PID value : {pid}")
+
+
+def handle_gyro_calibration_status(client: DebugClient):
+    system = int.from_bytes(client.receive_n_bytes(1), 'big')
+    gyro = int.from_bytes(client.receive_n_bytes(1), 'big')
+    accel = int.from_bytes(client.receive_n_bytes(1), 'big')
+    mag_calibration_status = int.from_bytes(client.receive_n_bytes(1), 'big')
+
+    logging.info(f"Gyro Calibration Status: System: {system}, Gyro: {
+                 gyro}, Acceleration: {accel}, Magnet Calibration Status {mag_calibration_status}")
