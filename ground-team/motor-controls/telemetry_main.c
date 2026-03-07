@@ -1,16 +1,15 @@
 #include "imu.h"
 #include "motor_control.h"
-#include "patterns.h"
+#include "telemetry.h"
 #include <signal.h>
-#include <unistd.h>
-
-#define PAUSE_US 500000
 
 static motor_t m1, m2;
 static imu_t imu;
+static telemetry_t telem;
 
 static void cleanup(int sig) {
   (void)sig;
+  telemetry_cleanup(&telem);
   motors_cleanup(&m1, &m2);
   imu_cleanup(&imu);
   _exit(0);
@@ -29,7 +28,10 @@ int main(void) {
   if (motors_init(&m1, &m2) != OK)
     return 1;
 
-  motors_drive_distance(&m1, &m2, 1.0f);
+  if (telemetry_init(&telem, &m1, &m2, &imu) != OK)
+    return 1;
+
+  telemetry_run(&telem);
 
   motors_cleanup(&m1, &m2);
   imu_cleanup(&imu);

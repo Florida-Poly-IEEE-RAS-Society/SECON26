@@ -2,11 +2,15 @@ CC      = gcc
 CFLAGS  = -Wall -Wextra -O2
 LDFLAGS = -llgpio
 
-TARGET  = motors
-SRCS    = main.c motor_control.c
+COMMON_SRCS = motor_control.c imu.c patterns.c telemetry.c
 
-$(TARGET): $(SRCS)
+autonomous: $(COMMON_SRCS) main.c
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
+telemetry: $(COMMON_SRCS) telemetry_main.c
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+all: autonomous telemetry
+
 clean:
-	rm -f $(TARGET)
+	rm -f autonomous telemetry
