@@ -86,7 +86,19 @@ cli_commands = {
         "Sets the pid values of the drone",
         ["pid_idx", "param_idx", "value"],
         MessageType.SET_PID
-    ]
+    ],
+    "get_pid": [
+        handlers.handle_get_pid,
+        "Returns current PID value",
+        [],
+        MessageType.GET_PID
+    ],
+    "gyro": [
+        handlers.handle_gyro_calibration_status,
+        "Returns calibration status of the gyro",
+        [],
+        MessageType.GYRO_CALIBRATION_STATUS
+    ],
 }
 
 # Arg: 1 float
