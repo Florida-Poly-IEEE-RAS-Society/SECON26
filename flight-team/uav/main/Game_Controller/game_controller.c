@@ -1,12 +1,14 @@
 #include "game_controller.h"
 
 #include <Flight_Controller/flight_controller.h>
+#include <Gyro/bno055.h>
 
 #include "freertos/FreeRTOS.h"
+#include <stdio.h>
 
 #define IR_GPIO 8
 
-static enum Game_State _current_state = Game_Waiting;
+static enum Game_State _current_state = Game_Calibrate;
 static IRtx_t _ir;
 static ir_nec_scan_code_t _ir_codes[4] = {0};
 
@@ -87,7 +89,21 @@ void retrieve(void) {
     }
 }
 
-static void game_task(void*) {
+void calibrate(void) {
+    uint8_t system, gyro, accel, mag = 0;
+    do {
+        bno055_getCalibration(&system, &gyro, &accel, &mag);
+        sensors_event_t ev;
+        bno055_getEvent2(&ev, VECTOR_EULER);
+        printf("Gyro: roll: %f, pitch: %f, yaw: %f\n", ev.orientation.z, ev.orientation.y, ev.orientation.x);
+        printf("Cali: gyro: %d, accel: %d, mag: %d, system: %d\n", gyro, accel, mag, system);
+        vTaskDelay(250 / portTICK_PERIOD_MS);
+    } while (!(system == 3 && gyro == 3 && accel == 3 && mag == 3));
+    
+    printf("Gyro Calibrated!\n");
+}
+
+static void game_task(void* p) {
     while (true) {
         switch (_current_state) {
         case Game_Waiting:
@@ -102,10 +118,16 @@ static void game_task(void*) {
         case Game_Retrieve:
             retrieve();
             break;
+        case Game_Calibrate:
+            calibrate();
+            break;
         }
-
         _current_state = Game_Waiting;
     }
+}
+
+enum Game_State game_get_state(void) {
+    return _current_state;
 }
 
 void game_controller_init(void) {
