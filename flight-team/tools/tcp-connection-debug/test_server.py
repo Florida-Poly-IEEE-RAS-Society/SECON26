@@ -23,7 +23,7 @@ def start_server():
             with conn:
                 print(f"Connected by {addr}")
                 request = conn.recv(1024)
-                if request.find(1):
+                if request == b'\x01':
                     send_image(conn, IMAGE_PATH)
                 else:
                     conn.send(b"Unknown request")
