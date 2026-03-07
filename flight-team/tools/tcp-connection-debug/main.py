@@ -33,6 +33,31 @@ cli_commands = {
         [],
         MessageType.CAMERA_DATA
     ],
+    "launch": [
+        handlers.handle_launch,
+        "Launches Drone",
+        [],
+        MessageType.LAUNCH
+    ],
+    "retreive": [
+        handlers.handle_retreive,
+        "Sends the retreive command",
+        [],
+        MessageType.RETREIVE
+    ],
+    "transmission_codes": [
+        handlers.handle_transmission_codes,
+        "Sends transmission codes to uav",
+        ["address_1", "command_1", "address_2", "command_2",
+            "address_3", "command_3", "address_4", "command_4"],
+        MessageType.TRANSMISSION_CODES
+    ],
+    "pos": [
+        handlers.handle_pos,
+        "Sets the relative position of the uav to ground bot",
+        ["uav_x", "uav_y", "bot_x", "bot_y"],
+        MessageType.POS
+    ],
     "stop": [
         handlers.handle_stop,
         "Emergency stops the drone",
@@ -44,6 +69,12 @@ cli_commands = {
         "Sets the thrust",
         ["thrust"],
         MessageType.THRUST
+    ],
+    "thrust_control_mode": [
+        handlers.handle_thrust_control_mode,
+        "Sets the thrust control mode",
+        ["thrust_control_mode"],
+        MessageType.THRUST_CONTROL_MODE
     ],
     "pitch": [
         handlers.handle_pitch,
@@ -90,8 +121,14 @@ cli_commands = {
     "get_pid": [
         handlers.handle_get_pid,
         "Returns current PID value",
-        [],
+        ["pid_idx", "param_idx"],
         MessageType.GET_PID
+    ],
+    "save_pid": [
+        handlers.handle_save_pid,
+        "Saves PID on uav",
+        [],
+        MessageType.SAVE_PID
     ],
     "gyro": [
         handlers.handle_gyro_calibration_status,
@@ -99,13 +136,19 @@ cli_commands = {
         [],
         MessageType.GYRO_CALIBRATION_STATUS
     ],
+    "get_game_state": [
+        handlers.handle_get_game_state,
+        "Returns the current game state",
+        [],
+        MessageType.GET_GAME_STATE
+    ],
+    "pos_vel": [
+        handlers.handle_pos_vel,
+        "Returns the position and velocity of uav",
+        [],
+        MessageType.POS_VEL
+    ],
 }
-
-# Arg: 1 float
-# Thrust, pitch, roll, yaw, set_height, set_x, set_y
-#
-# Arg: 1 byte, 1 byte, 1 float
-# Set_pid
 
 
 def register_cli_commands(client: DebugClient):
@@ -120,8 +163,6 @@ def register_cli_commands(client: DebugClient):
 
 if __name__ == '__main__':
     client = DebugClient(HOST, PORT)
-
-    client.register_handler(MessageType.CAMERA_DATA, handlers.handle_camera)
 
     register_cli_commands(client)
 
