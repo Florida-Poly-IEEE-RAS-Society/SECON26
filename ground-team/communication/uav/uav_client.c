@@ -129,14 +129,83 @@ void thrust_control_mode_handler(int sock, thrust_ctrl_mode_args* args) {
 
 // ROLL PITCH and YAW not implemented
 
+void set_height_handler(int sock, set_height_args* args) {
+    send(sock, &args->delta_height, sizeof(args->delta_height), 0);
+}
+
+void set_x_handler(int sock, set_x_args* args) {
+    send(sock, &args->delta_x, sizeof(args->delta_x), 0);
+}
+
+void set_y_handler(int sock, set_y_args* args) {
+    send(sock, &args->delta_y, sizeof(args->delta_y), 0);
+}
+
+void set_pid_handler(int sock, set_pid_args* args) {
+    send(sock, &args->pid_idx, sizeof(args->pid_idx), 0);
+    send(sock, &args->param_idx, sizeof(args->param_idx), 0);
+    send(sock, &args->value, sizeof(args->value), 0);
+}
+
 get_pid_response* get_pid_handler(int sock, get_pid_args* args) {
     send(sock, &args->pid_idx, sizeof(args->pid_idx), 0);
     send(sock, &args->param_idx, sizeof(args->param_idx), 0);
-
+    
     get_pid_response* response = malloc(sizeof(get_pid_response));
     if (recv_exact(sock, (u_int8_t*)response, sizeof(*response)) < 0) {
         perror("Failed to receive PID response");
         response = NULL;
+    }
+    return response;
+}
+
+save_pid_response* save_pid_handler(int sock) {
+    // Allocate memory for the response (uint8_t success)
+    save_pid_response* response = malloc(sizeof(save_pid_response));
+    if (response == NULL) return NULL;
+
+    // Wait for the UAV to confirm if the flash/EEPROM save was successful
+    if (recv_exact(sock, (uint8_t*)response, sizeof(save_pid_response)) < 0) {
+        perror("Failed to receive SAVE_PID response");
+        free(response);
+        return NULL;
+    }
+    return response;
+}
+
+gyro_calibration_status_response* gyro_calibration_status_handler(int sock) {
+    // Allocate memory for the 4-byte status struct
+    gyro_calibration_status_response* response = malloc(sizeof(gyro_calibration_status_response));
+    if (response == NULL) return NULL;
+
+    // Receive the status bytes (system, gyro, accel, mag)
+    if (recv_exact(sock, (uint8_t*)response, sizeof(gyro_calibration_status_response)) < 0) {
+        perror("Failed to receive gyro status");
+        free(response);
+        return NULL;
+    }
+    return response;
+}
+
+get_game_state_response* get_game_state_handler(int sock) {
+    get_game_state_response* response = malloc(sizeof(get_game_state_response));
+    if (response == NULL) return NULL;
+
+    // Receive the single byte representing the current state
+    if (recv_exact(sock, (uint8_t*)response, sizeof(get_game_state_response)) < 0) {
+        perror("Failed to receive game state");
+        free(response);
+        return NULL;
+    }
+    return response;
+}
+
+pos_vel_response* pos_vel_handler(int sock) {
+    pos_vel_response* response = malloc(sizeof(pos_vel_response));
+    if (recv_exact(sock, (u_int8_t*)response, sizeof(*response)) < 0) {
+        perror("Failed to receive position and velocity response");
+        free(response);
+        return NULL;
     }
     return response;
 }
