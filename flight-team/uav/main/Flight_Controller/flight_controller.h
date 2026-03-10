@@ -11,6 +11,8 @@ enum Pid_Param_Type {
 };
 
 bool flight_controller_init(void);
+void flight_controller_set_run(bool should_run);
+void emergency_stop(void);
 void change_pos_by(float inches_x, float inches_y);
 void reset_pos(float offset_inches_x, float offset_inches_y);
 void reset_height(float offset_inches_z);
@@ -20,7 +22,6 @@ void rotate_by(float degrees);
 void set_throttle(float power);
 void set_thrust_control_mode(bool direct_throttle);
 bool at_desired_position(void);
-void emergency_stop(void);
 void set_pid(enum Pid_Type pid_idx, enum Pid_Param_Type param_idx, float value);
 float get_pid(enum Pid_Type pid_idx, enum Pid_Param_Type param_idx);
 bool save_gyro_calibration_data(void);
