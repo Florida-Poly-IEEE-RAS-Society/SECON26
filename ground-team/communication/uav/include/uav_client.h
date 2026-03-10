@@ -25,7 +25,7 @@ enum Command {
 
 void* send_command_to_uav(enum Command cmd, void* args);
 
-const int NUM_TRANSMISSION_CODES = 4;
+#define NUM_TRANSMISSION_CODES 4
 
 // copied from uav IR code
 typedef struct {

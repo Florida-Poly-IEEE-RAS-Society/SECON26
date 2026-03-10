@@ -56,7 +56,7 @@ int connect_to_server() {
 image_response* image_handler(int sock) {
     const char* filename = "./output.jpg"; // for debug only
     uint8_t cmd = IMAGE;
-    image_response* response;
+    image_response* response = malloc(sizeof(image_response));
     if (send(sock, &cmd, 1, 0) != 1) {
         perror("Failed to send IMAGE command");
         return NULL;
@@ -174,7 +174,7 @@ void* send_command_to_uav(enum Command cmd, void* args) {
         printf("-> Sent command %d to UAV.\n", cmd);
     }
 
-    void* response;
+    void* response = NULL;
 
     switch (cmd) {
     case IMAGE:
@@ -183,8 +183,11 @@ void* send_command_to_uav(enum Command cmd, void* args) {
     case LAUNCH:
     case RETRIEVE:
         break; // no header + args
-    case TRANSMISSION_CODES:
-        break; //later
+    case TRANSMISSION_CODES: {
+        transmission_codes_args* tc_args = (transmission_codes_args*) args;
+        transmission_codes_handler(sock, tc_args);
+        free(tc_args);
+    } break;
     case POS: {
         pos_args* p_args = (pos_args*) args;
         pos_handler(sock, p_args);
