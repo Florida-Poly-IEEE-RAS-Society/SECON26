@@ -93,7 +93,7 @@ void retrieve(void) {
 
 void calibrate(void) {
     while (!save_gyro_calibration_data()) {
-        vTaskDelay(125 / portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 
