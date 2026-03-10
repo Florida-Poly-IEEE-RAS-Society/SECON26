@@ -64,7 +64,7 @@ cli_commands = {
         [],
         MessageType.STOP
     ],
-    "thrust": [
+    "t": [
         handlers.handle_thrust,
         "Sets the thrust",
         ["thrust"],
@@ -130,7 +130,7 @@ cli_commands = {
         [],
         MessageType.SAVE_PID
     ],
-    "gyro": [
+    "g": [
         handlers.handle_gyro_calibration_status,
         "Returns calibration status of the gyro",
         [],
@@ -147,6 +147,12 @@ cli_commands = {
         "Returns the position and velocity of uav",
         [],
         MessageType.POS_VEL
+    ],
+    "ga": [
+        handlers.handle_gyro_angle,
+        "Returns the absolute angular position of the gyroscope",
+        [],
+        MessageType.GYRO_ANGLE
     ],
 }
 
