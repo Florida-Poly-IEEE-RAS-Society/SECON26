@@ -56,7 +56,7 @@ int connect_to_server() {
 image_response* image_handler(int sock) {
     const char* filename = "./output.jpg"; // for debug only
     uint8_t cmd = IMAGE;
-    image_response* response;
+    image_response* response = malloc(sizeof(image_response));
     if (send(sock, &cmd, 1, 0) != 1) {
         perror("Failed to send IMAGE command");
         return NULL;
@@ -210,27 +210,6 @@ pos_vel_response* pos_vel_handler(int sock) {
     return response;
 }
 
-// Sends 4 IR transmission codes to the UAV
-void send_transmission_codes(ir_nec_scan_code_t codes[4]) {
-    int sock = connect_to_server();
-    if (sock < 0) return;
-
-    uint8_t cmd = TRANSMISSION_CODES;
-    if (send(sock, &cmd, 1, 0) != 1) {
-        perror("Failed to send TRANSMISSION_CODES command");
-        close(sock);
-        return;
-    }
-
-    if (send(sock, codes, sizeof(ir_nec_scan_code_t) * 4, 0) != sizeof(ir_nec_scan_code_t) * 4) {
-        perror("Failed to send codes data");
-    } else {
-        printf("-> Sent transmission codes to UAV.\n");
-    }
-
-    close(sock);
-}
-
 // Delegate command to its respective handler
 void* send_command_to_uav(enum Command cmd, void* args) {
     int sock = connect_to_server();
@@ -243,7 +222,7 @@ void* send_command_to_uav(enum Command cmd, void* args) {
         printf("-> Sent command %d to UAV.\n", cmd);
     }
 
-    void* response;
+    void* response = NULL;
 
     switch (cmd) {
     case IMAGE:
@@ -252,8 +231,11 @@ void* send_command_to_uav(enum Command cmd, void* args) {
     case LAUNCH:
     case RETRIEVE:
         break; // no header + args
-    case TRANSMISSION_CODES:
-        break; //later
+    case TRANSMISSION_CODES: {
+        transmission_codes_args* tc_args = (transmission_codes_args*) args;
+        transmission_codes_handler(sock, tc_args);
+        free(tc_args);
+    } break;
     case POS: {
         pos_args* p_args = (pos_args*) args;
         pos_handler(sock, p_args);
@@ -275,6 +257,43 @@ void* send_command_to_uav(enum Command cmd, void* args) {
     case ROLL:
     case YAW:
         break; // not implemented yet
+    case SET_HEIGHT: {
+        set_height_args* sh_args = (set_height_args*) args;
+        set_height_handler(sock, args);
+        free(sh_args);
+    } break;
+    case SET_X: {
+        set_x_args* x_args = (set_x_args*) args;
+        set_x_handler(sock, args);
+        free(x_args);
+    } break;
+    case SET_Y: {
+        set_y_args* y_args = (set_y_args*) args;
+        set_y_handler(sock, args);
+        free(y_args);
+    } break;
+    case SET_PID: {
+        set_pid_args* spid_args = (set_pid_args*) args;
+        set_pid_handler(sock, spid_args);
+        free(spid_args);
+    } break;
+    case GET_PID: {
+        get_pid_args* gpid_args = (get_pid_args*) args;
+        response = (void*) get_pid_handler(sock, args);
+        free(gpid_args);
+    } break;
+    case SAVE_PID:
+        response = (void*)save_pid_handler(sock);
+        break;
+    case GYRO_CALIBRATION_STATUS:
+        response = (void*)gyro_calibration_status_handler(sock);
+        break;
+    case GET_GAME_STATE:
+        response = (void*)get_game_state_handler(sock);
+        break;
+    case POS_VEL:
+        response = (void*)pos_vel_handler(sock);
+        break;
     default:
         perror("Invalid command");
         response = NULL;

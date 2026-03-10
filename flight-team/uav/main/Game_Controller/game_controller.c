@@ -6,7 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include <stdio.h>
 
-#define IR_GPIO 8
+#define IR_GPIO 3
 
 static enum Game_State _current_state = Game_Calibrate;
 static IRtx_t _ir;
@@ -21,9 +21,9 @@ static struct {
     bool curr;
 } _pos = {0};
 
-
 bool game_state_change_maybe(enum Game_State new_state) {
     if (_current_state == Game_Waiting) {
+        flight_controller_set_run(true);
         _current_state = new_state;
         return true;
     } else {
@@ -87,15 +87,19 @@ void retrieve(void) {
     while (!at_desired_position()) {
         vTaskDelay(125 / portTICK_PERIOD_MS);
     }
+
+    flight_controller_set_run(false);
 }
 
 void calibrate(void) {
     while (!save_gyro_calibration_data()) {
-        vTaskDelay(125 / portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 
 static void game_task(void* p) {
+    flight_controller_set_run(false);
+    
     while (true) {
         switch (_current_state) {
         case Game_Waiting:
