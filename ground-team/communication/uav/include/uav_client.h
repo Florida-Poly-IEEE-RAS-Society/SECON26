@@ -23,6 +23,20 @@ enum Command {
     POS_VEL,
 };
 
+void* send_command_to_uav(enum Command cmd, void* args);
+
+const int NUM_TRANSMISSION_CODES = 4;
+
+// copied from uav IR code
+typedef struct {
+    uint16_t address;
+    uint16_t command;
+} ir_nec_scan_code_t;
+
+typedef struct {
+    ir_nec_scan_code_t codes[NUM_TRANSMISSION_CODES];
+} transmission_codes_args;
+
 // --- POS ---
 // header: 4 floats (position data)
 typedef struct {
@@ -96,6 +110,8 @@ typedef struct {
 } get_pid_args;
 
 
+// gonna see how temporary stack allocation goes, if it creates problems then
+// go back 2 heap
 typedef struct {
     uint32_t size;
     uint8_t data[];
