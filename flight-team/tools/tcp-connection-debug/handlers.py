@@ -30,25 +30,36 @@ def downscale_image(image: cv.UMat) -> cv.UMat:
     return np.array(img)
 
 
-"""
-handlers
-"""
-
-
-def handle_camera(client: DebugClient):
+def receive_image(client: DebugClient):
     logging.debug("getting image")
     size = int.from_bytes(client.receive_n_bytes(4))
     payload = client.receive_n_bytes(size)
 
     image = np.frombuffer(payload, dtype=np.uint8)
     image_decoded = cv.imdecode(image, cv.IMREAD_COLOR)
-    image_downscaled = downscale_image(image_decoded)
+
+    return image_decoded
+
+
+"""
+handlers
+"""
+
+
+def handle_camera(client: DebugClient):
+    opencv_image = receive_image(client)
+    image_downscaled = downscale_image(opencv_image)
 
     computer_vision_result = fd.recompute_display(
-        image_downscaled, image_decoded)
+        image_downscaled, opencv_image)
     cv.imwrite(output_image_file, computer_vision_result)
 
     logging.info(f"Image saved to {output_image_file}")
+
+    duck_points = fd.get_duck_points(opencv_image)
+    field_corners = fd.get_field_corner_points(opencv_image)
+
+    logging.info(f"Duck points: {duck_points}\n Field corners: {field_corners}")
 
 
 def handle_launch(client: DebugClient):
