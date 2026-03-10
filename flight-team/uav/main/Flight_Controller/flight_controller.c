@@ -423,11 +423,16 @@ void set_thrust_control_mode(bool direct_throttle) {
     _direct_throttle = direct_throttle;
 }
 
-void set_pid(enum Pid_Type pid_idx, enum Pid_Param_Type param_idx, float value) {
-    _pid[pid_idx].params[param_idx] = value;
+bool set_pid(enum Pid_Type pid_idx, enum Pid_Param_Type param_idx, float value) {
+  if (pid_idx < 0 || pid_idx >= Num_Pid_Types) return false;
+  if (param_idx < 0 || param_idx >= 4) return false;
+  _pid[pid_idx].params[param_idx] = value;
+  return true;
 }
 
 float get_pid(enum Pid_Type pid_idx, enum Pid_Param_Type param_idx) {
+    if (pid_idx < 0 || pid_idx >= Num_Pid_Types) return NAN;
+    if (param_idx < 0 || param_idx >= 4) return NAN;
     return _pid[pid_idx].params[param_idx];
 }
 
@@ -441,12 +446,12 @@ float get_z_vel(void) { return _z_vel; }
 bool save_gyro_calibration_data(void) {
     bno055_offsets_t offsets;
     if (!bno055_getSensorOffsets2(&offsets)) {
-        ESP_LOGI(TAG, "Gyro not calibrated; cannot save data");
+        ESP_LOGE(TAG, "Gyro not calibrated; cannot save data");
         return false; /* sensor not fully calibrated, nothing to save */
     }
     nvs_handle_t handle;
     if (nvs_open(NVS_BNO055_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) {
-        ESP_LOGI(TAG, "Could not open Gyro calibration namespace");
+        ESP_LOGE(TAG, "Could not open Gyro calibration namespace");
         return false;
     }
     esp_err_t err = nvs_set_blob(handle, NVS_BNO055_CAL_KEY, &offsets, sizeof(offsets));
@@ -454,7 +459,7 @@ bool save_gyro_calibration_data(void) {
         nvs_commit(handle);
         ESP_LOGI(TAG, "Gyro calibration data saved sucessfully");
     } else {
-        ESP_LOGI(TAG, "Could not save Gyro calibration data");
+        ESP_LOGE(TAG, "Could not save Gyro calibration data");
     }
     nvs_close(handle);
 
@@ -464,7 +469,7 @@ bool save_gyro_calibration_data(void) {
 bool set_gyro_calibration_data(void) {
     nvs_handle_t handle;
     if (nvs_open(NVS_BNO055_NAMESPACE, NVS_READONLY, &handle) != ESP_OK) {
-        ESP_LOGI(TAG, "No Gyro calibration data available");
+        ESP_LOGE(TAG, "No Gyro calibration data available");
         return false; /* no saved calibration or NVS not available */
     }
     bno055_offsets_t offsets;
@@ -473,7 +478,7 @@ bool set_gyro_calibration_data(void) {
         bno055_setSensorOffsets4(&offsets);
         ESP_LOGI(TAG, "Gyro calibration loaded sucessfully");
     } else {
-        ESP_LOGI(TAG, "Could load gyro calibration");
+        ESP_LOGE(TAG, "Could load gyro calibration");
     }
     nvs_close(handle);
 
@@ -507,7 +512,7 @@ bool save_pid_parameters(void) {
 bool set_pid_parameters(void) {
     nvs_handle_t handle;
     if (nvs_open(NVS_PID_NAMESPACE, NVS_READONLY, &handle) != ESP_OK) {
-        ESP_LOGI(TAG, "Could not load PID values");
+        ESP_LOGE(TAG, "Could not load PID values");
         return false;
     }
     float buf[PID_STORAGE_SIZE];

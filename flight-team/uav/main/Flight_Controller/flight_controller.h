@@ -22,7 +22,7 @@ void rotate_by(float degrees);
 void set_throttle(float power);
 void set_thrust_control_mode(bool direct_throttle);
 bool at_desired_position(void);
-void set_pid(enum Pid_Type pid_idx, enum Pid_Param_Type param_idx, float value);
+bool set_pid(enum Pid_Type pid_idx, enum Pid_Param_Type param_idx, float value);
 float get_pid(enum Pid_Type pid_idx, enum Pid_Param_Type param_idx);
 bool save_gyro_calibration_data(void);
 bool set_gyro_calibration_data(void);

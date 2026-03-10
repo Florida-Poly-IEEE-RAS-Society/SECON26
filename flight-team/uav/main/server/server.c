@@ -284,7 +284,11 @@ static void serve_command(int sock) {
             uint8_t param_idx = params[1];
             float value;
             memcpy(&value, &params[2], sizeof(value));   
-            set_pid(pid_idx, param_idx, value);
+            bool ok = set_pid(pid_idx, param_idx, value);
+
+            if (!ok) {
+                ESP_LOGE(TAG, "PID idx out of range !!!");
+            }
         } else {
             ESP_LOGE(TAG, "Error occurred while setting PID params: errno %d, size: %d", errno, l);
         }
