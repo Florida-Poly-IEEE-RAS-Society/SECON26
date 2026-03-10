@@ -16,8 +16,7 @@ class Command:
         self.args = args
 
         if (bool(client) or bool(msg_type)) and (not bool(client) and bool(msg_type)):
-            logging.warning(f"Please define both client and msg_type for command {
-                            name} ITS REALLY IMPORTANT or define neither")
+            logging.warning(f"Please define both client and msg_type for command {name} ITS REALLY IMPORTANT or define neither")
 
         self.client = client
         self.msg_type = msg_type
