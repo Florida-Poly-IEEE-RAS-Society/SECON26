@@ -257,7 +257,7 @@ static void flight_task(void *data) {
                 if (fabsf(prev_roll - roll) < 0.01 &&
                     fabsf(prev_pitch - pitch) < 0.01 && fabsf(prev_yaw_rate - yaw_rate)) {
                     if (i == 4) {
-                        ESP_LOGI(TAG, "Set Roll, Pitch, and Yaw Rate Bias to: (%f, %f)", roll, pitch, yaw_rate);
+                        ESP_LOGI(TAG, "Set Roll, Pitch, and Yaw Rate Bias to: (%f, %f, %f)", roll, pitch, yaw_rate);
                         roll_bias = roll;
                         pitch_bias = pitch;
                         yaw_rate_bias = yaw_rate;
