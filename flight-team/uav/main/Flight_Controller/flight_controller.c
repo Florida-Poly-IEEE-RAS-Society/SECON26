@@ -441,19 +441,24 @@ float get_z_vel(void) { return _z_vel; }
 bool save_gyro_calibration_data(void) {
     bno055_offsets_t offsets;
     if (!bno055_getSensorOffsets2(&offsets)) {
+        ESP_LOGI(TAG, "Gyro not calibrated; cannot save data");
         return false; /* sensor not fully calibrated, nothing to save */
     }
     nvs_handle_t handle;
     if (nvs_open(NVS_BNO055_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) {
+        ESP_LOGI(TAG, "Could not open Gyro calibration namespace");
         return false;
     }
     esp_err_t err = nvs_set_blob(handle, NVS_BNO055_CAL_KEY, &offsets, sizeof(offsets));
     if (err == ESP_OK) {
         nvs_commit(handle);
+        ESP_LOGI(TAG, "Gyro calibration data saved sucessfully");
+    } else {
+        ESP_LOGI(TAG, "Could not save Gyro calibration data");
     }
     nvs_close(handle);
 
-    return true;
+    return true; // yeah yeah it returns true regardless
 }
 
 bool set_gyro_calibration_data(void) {
@@ -466,11 +471,13 @@ bool set_gyro_calibration_data(void) {
     size_t len = sizeof(offsets);
     if (nvs_get_blob(handle, NVS_BNO055_CAL_KEY, &offsets, &len) == ESP_OK && len == sizeof(offsets)) {
         bno055_setSensorOffsets4(&offsets);
+        ESP_LOGI(TAG, "Gyro calibration loaded sucessfully");
+    } else {
+        ESP_LOGI(TAG, "Could load gyro calibration");
     }
     nvs_close(handle);
 
-    ESP_LOGI(TAG, "Gyro calibration loaded sucessfully");
-    return true;
+    return true; // yeah yeah it returns true regardless
 }
 
 bool save_pid_parameters(void) {
@@ -482,17 +489,19 @@ bool save_pid_parameters(void) {
     }
     nvs_handle_t handle;
     if (nvs_open(NVS_PID_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) {
-        ESP_LOGI(TAG, "Could not write PID values");
+        ESP_LOGI(TAG, "Could not open PID namespace");
         return false;
     }
     esp_err_t err = nvs_set_blob(handle, NVS_PID_PARAMS_KEY, buf, sizeof(buf));
     if (err == ESP_OK) {
         nvs_commit(handle);
+        ESP_LOGI(TAG, "PID values saved successfully");
+    } else {
+        ESP_LOGI(TAG, "Could not save PID values");
     }
     nvs_close(handle);
 
-    ESP_LOGI(TAG, "PID values saved successfully");
-    return true;
+    return true; // yeah yeah it returns true regardless of 'err'
 }
 
 bool set_pid_parameters(void) {
