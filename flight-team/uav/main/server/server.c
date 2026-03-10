@@ -323,11 +323,11 @@ static void serve_command(int sock) {
     } break;
     case GYRO_ANGLE: {
         sensors_event_t orient_ev;
-            sensors_event_t gyro_ev;
-            sensors_event_t accel_ev;
-            bno055_getEvent2(&orient_ev, VECTOR_EULER); // degree
-            bno055_getEvent2(&gyro_ev, VECTOR_GYROSCOPE); // radians/second
-            bno055_getEvent2(&accel_ev, VECTOR_LINEARACCEL); // m/s^2 (acceleration - gravity)
+        sensors_event_t gyro_ev;
+        sensors_event_t accel_ev;
+        bno055_getEvent2(&orient_ev, VECTOR_EULER); // degree
+        bno055_getEvent2(&gyro_ev, VECTOR_GYROSCOPE); // radians/second
+        bno055_getEvent2(&accel_ev, VECTOR_LINEARACCEL); // m/s^2 (acceleration - gravity)
         float data[9];
         data[0] = orient_ev.orientation.z;
         data[1] = orient_ev.orientation.y;
