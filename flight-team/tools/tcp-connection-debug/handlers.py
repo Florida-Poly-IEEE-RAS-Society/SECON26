@@ -24,15 +24,15 @@ helper functions
 
 def downscale_image(image: cv.UMat) -> cv.UMat:
     img = Image.fromarray(image)
-    new_width = img.size[0] // 3
-    new_height = img.size[1] // 3
+    new_width = img.size[0]
+    new_height = img.size[1]
     img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
     return np.array(img)
 
 
 def receive_image(client: DebugClient):
     logging.debug("getting image")
-    size = int.from_bytes(client.receive_n_bytes(4))
+    size = int.from_bytes(client.receive_n_bytes(4), "big")
     payload = client.receive_n_bytes(size)
 
     image = np.frombuffer(payload, dtype=np.uint8)
@@ -192,8 +192,7 @@ def handle_gyro_calibration_status(client: DebugClient):
     mag_calibration_status = int.from_bytes(
         client.receive_n_bytes(1), 'little')
 
-    logging.info(f"Gyro Calibration Status: System: {system}, Gyro: {
-                 gyro}, Acceleration: {accel}, Magnet Calibration Status {mag_calibration_status}")
+    logging.info(f"Gyro Calibration Status: System: {system}, Gyro: {gyro}, Acceleration: {accel}, Magnet Calibration Status {mag_calibration_status}")
 
 
 def handle_get_game_state(client: DebugClient):
@@ -206,8 +205,7 @@ def handle_pos_vel(client: DebugClient):
     x_pos, y_pos, z_pos, x_vel, y_vel, z_vel = struct.unpack(
         "<ffffff", client.receive_n_bytes(24))
 
-    logging.info(f"Pos Vel: pos: [{x_pos}, {y_pos}, {
-                 z_pos}], vel: [{x_vel}, {y_vel}, {z_vel}]")
+    logging.info(f"Pos Vel: pos: [{x_pos}, {y_pos}, {z_pos}], vel: [{x_vel}, {y_vel}, {z_vel}]")
 
 
 def handle_gyro_angle(client: DebugClient):
