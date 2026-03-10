@@ -120,7 +120,35 @@ enum Command {
   response: 6 floats (x_pos, y_pos, z_pos, x_vel, y_vel, z_vel), in meters and m/s
   */
   POS_VEL,
+  GYRO_ANGLE,
 };
+
+static const char *command_to_string(enum Command cmd) {
+    switch (cmd) {
+    case IMAGE: return "IMAGE";
+    case LAUNCH: return "LAUNCH";
+    case RETRIEVE: return "RETRIEVE";
+    case TRANSMISSION_CODES: return "TRANSMISSION_CODES";
+    case POS: return "POS";
+    case STOP: return "STOP";
+    case THRUST: return "THRUST";
+    case THRUST_CTRL_MODE: return "THRUST_CTRL_MODE";
+    case PITCH: return "PITCH";
+    case ROLL: return "ROLL";
+    case YAW: return "YAW";
+    case SET_HEIGHT: return "SET_HEIGHT";
+    case SET_X: return "SET_X";
+    case SET_Y: return "SET_Y";
+    case SET_PID: return "SET_PID";
+    case GET_PID: return "GET_PID";
+    case SAVE_PID: return "SAVE_PID";
+    case GYRO_CALIBRATION_STATUS: return "GYRO_CALIBRATION_STATUS";
+    case GET_GAME_STATE: return "GET_GAME_STATE";
+    case POS_VEL: return "POS_VEL";
+    case GYRO_ANGLE: return "GYRO_ANGLE";
+    default: return "UNKNOWN_COMMAND";
+    }
+}
 
 static const char *TAG = "TCP_SERVER";
 
@@ -169,6 +197,8 @@ static void serve_command(int sock) {
         return;
     }
 
+    printf("GOT COMMAND: %s (%d)\n", command_to_string((enum Command)command), (int)command);
+
     switch (command) {
     case IMAGE:
         command_image(sock);
@@ -201,7 +231,12 @@ static void serve_command(int sock) {
     case THRUST: {
         float power;
         int l = recv(sock, &power, sizeof(power), MSG_WAITALL);
-        if (l == sizeof(power)) set_throttle(power);
+        if (l == sizeof(power)) {
+            /* printf("POWER: %f\n", power); */
+            set_throttle(power);
+        } else {
+            printf("Could not set throttle: %f power\n", power);
+        }
     } break;
     case THRUST_CTRL_MODE: {
         uint8_t x;
@@ -217,33 +252,55 @@ static void serve_command(int sock) {
     case SET_HEIGHT: {
         float h;
         int l = recv(sock, &h, sizeof(h), MSG_WAITALL);
-        if (l == sizeof(h)) change_height_by(h);
+        if (l == sizeof(h)) {
+            change_height_by(h);
+        } else {
+            ESP_LOGE(TAG, "Error occurred while setting the height: errno %d, size: %d", errno, l);
+        }
     } break;
     case SET_X: {
         float x_pos;
         int l = recv(sock, &x_pos, sizeof(x_pos), MSG_WAITALL);
-        if (l == sizeof(x_pos)) change_pos_by(x_pos, 0);
+        if (l == sizeof(x_pos)) {
+            change_pos_by(x_pos, 0);
+        } else {
+            ESP_LOGE(TAG, "Error occurred while setting the x pos: errno %d, size: %d", errno, l);
+        }
     } break;
     case SET_Y: {
         float y_pos;
         int l = recv(sock, &y_pos, sizeof(y_pos), MSG_WAITALL);
-        if (l == sizeof(y_pos)) change_pos_by(0, y_pos);
+        if (l == sizeof(y_pos)) {
+            change_pos_by(0, y_pos);
+        } else {
+            ESP_LOGE(TAG, "Error occurred while setting the y pos: errno %d, size: %d", errno, l);
+        }
     } break;
     case SET_PID: {
-        struct Set_Pid_Type { uint8_t pid_idx; uint8_t param_idx; float value; } params;
+        uint8_t params[6]; // uint8_t pid_idx; uint8_t param_idx; float value;
         int l = recv(sock, &params, sizeof(params), MSG_WAITALL);
         if (l == sizeof(params)) {
-            set_pid(params.pid_idx, params.param_idx, params.value);
+            uint8_t pid_idx = params[0];
+            uint8_t param_idx = params[1];
+            float value;
+            memcpy(&value, &params[2], sizeof(value));   
+            bool ok = set_pid(pid_idx, param_idx, value);
+
+            if (!ok) {
+                ESP_LOGE(TAG, "PID idx out of range !!!");
+            }
+        } else {
+            ESP_LOGE(TAG, "Error occurred while setting PID params: errno %d, size: %d", errno, l);
         }
     } break;
     case GET_PID: {
-        struct Get_Pid_Type { uint8_t pid_idx; uint8_t param_idx; } params;
+        uint8_t params[2]; // uint8_t pid_idx; uint8_t param_idx;
         int l = recv(sock, &params, sizeof(params), MSG_WAITALL);
         if (l == sizeof(params)) {
-            float value = get_pid(params.pid_idx, params.param_idx);
+            float value = get_pid(params[0], params[1]);
             send(sock, &value, sizeof(value), 0);
         } else {
-            ESP_LOGE(TAG, "Error occurred while getting PID params: errno %d", errno);
+            ESP_LOGE(TAG, "Error occurred while getting PID params: errno %d, size: %d", errno, l);
         }
     } break;
     case GYRO_CALIBRATION_STATUS: {
@@ -268,6 +325,25 @@ static void serve_command(int sock) {
         uint8_t data = (uint8_t)ok;
         send(sock, &data, sizeof(data), 0);
     } break;
+    case GYRO_ANGLE: {
+        sensors_event_t orient_ev;
+        sensors_event_t gyro_ev;
+        sensors_event_t accel_ev;
+        bno055_getEvent2(&orient_ev, VECTOR_EULER); // degree
+        bno055_getEvent2(&gyro_ev, VECTOR_GYROSCOPE); // radians/second
+        bno055_getEvent2(&accel_ev, VECTOR_LINEARACCEL); // m/s^2 (acceleration - gravity)
+        float data[9];
+        data[0] = orient_ev.orientation.z;
+        data[1] = orient_ev.orientation.y;
+        data[2] = orient_ev.orientation.x;
+        data[3] = gyro_ev.gyro.roll;
+        data[4] = gyro_ev.gyro.pitch;
+        data[5] = gyro_ev.gyro.heading;
+        data[6] = accel_ev.acceleration.x;
+        data[7] = accel_ev.acceleration.y;
+        data[8] = accel_ev.acceleration.z;
+        send(sock, data, sizeof(data), 0);
+    }
     }
 }
 

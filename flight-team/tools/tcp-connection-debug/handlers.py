@@ -206,3 +206,9 @@ def handle_pos_vel(client: DebugClient):
         "<ffffff", client.receive_n_bytes(24))
 
     logging.info(f"Pos Vel: pos: [{x_pos}, {y_pos}, {z_pos}], vel: [{x_vel}, {y_vel}, {z_vel}]")
+
+
+def handle_gyro_angle(client: DebugClient):
+    roll, pitch, yaw, roll_rate, pitch_rate, yaw_rate, acc_x, acc_y, acc_z = struct.unpack("<fffffffff", client.receive_n_bytes(36))
+
+    logging.info(f"Pitch, Yaw, Roll: ({roll}, {pitch}, {yaw})\nRoll, Pitch, Yaw (Rate): ({roll_rate}, {pitch_rate}, {yaw_rate})\nAcc X, Acc Y, Acc Z: ({acc_x}, {acc_y}, {acc_z})")

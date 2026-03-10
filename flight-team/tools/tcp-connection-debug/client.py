@@ -24,6 +24,7 @@ class MessageType(Enum):
     GYRO_CALIBRATION_STATUS = 18
     GET_GAME_STATE = 19
     POS_VEL = 20
+    GYRO_ANGLE = 21
 
 
 class DebugClient:
