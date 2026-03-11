@@ -49,7 +49,7 @@ void motor_set(motor_t *m, motordir_t dir) {
   lgGpioWrite(m->handle, m->in2, b);
 }
 
-void motors_drive_distance(motor_t *m1, motor_t *m2, float feet) {
+void motors_drive_distance(motor_t *m1, motor_t *m2, imu_t *imu, float feet) {
   motordir_t dir = feet >= 0 ? MOTOR_FORWARD : MOTOR_BACKWARD;
   if (feet < 0)
     feet = -feet;
@@ -58,6 +58,42 @@ void motors_drive_distance(motor_t *m1, motor_t *m2, float feet) {
 
   motor_set(m1, dir);
   motor_set(m2, dir);
+
+
+  struct timespec prev, now;
+  clock_gettime(CLOCK_MONOTONIC, &prev);
+
+  ras_pid_t pid;
+  ras_pid_init(&pid, 1, 0, 0);
+  float setpoint;
+  imu_read_gyro_z(imu, &setpoint);
+
+  float margin = 0.1;
+  
+  while (us > 0) {
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    float dt =
+        (now.tv_sec - prev.tv_sec) + (now.tv_nsec - prev.tv_nsec) * 1e-9f;
+    prev = now;
+
+    float gz;
+    if (imu_read_gyro_z(imu, &gz) != OK)
+      break;
+
+    if (gz < setpoint - margin) {
+      // drifting left???? 
+      motor_set(m2, MOTOR_STOP); // right motor ?????
+    } else if (gz > setpoint + margin) {
+      // drifting right????
+      motor_set(m1, MOTOR_STOP); // left motor ?????
+    } else {
+      motor_set(m1, dir);
+      motor_set(m1, dir);
+    }
+
+    us -= 10000;
+    usleep(10000); // 10ms
+  }
   usleep(us);
   motor_set(m1, MOTOR_STOP);
   motor_set(m2, MOTOR_STOP);
