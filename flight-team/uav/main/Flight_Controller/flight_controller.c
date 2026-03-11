@@ -2,6 +2,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "nvs.h"
 #include <math.h>
 
@@ -11,8 +12,12 @@
 #include <stdint.h>
 
 
-#define DT (0.01f)
-#define SLEEP_TIME (DT*1000.0f)
+/* Nominal period for first iteration after arm and for vTaskDelay target (~100 Hz) */
+#define NOMINAL_DT     (0.01f)
+#define SLEEP_TIME_MS  (NOMINAL_DT * 1000.0f)
+/* Clamp measured dt to avoid integral/derivative blowups on long stalls */
+#define DT_MIN (0.001f)
+#define DT_MAX (0.05f)
 
 #define MIN_THROTTLE 0.06f
 #define ACCEPTABLE_ERROR 0.1f
@@ -150,13 +155,13 @@ static void pid_reset(struct Pid *p) {
     p->integral = 0.0f;
 }
 
-static float update_pid_angle(struct Pid *p, float angle, float rate) {
+static float update_pid_angle(struct Pid *p, float angle, float rate, float dt) {
     float err = p->setpoint - angle;
 
     if (_throttle <= MIN_THROTTLE) {
         p->integral = 0.0f;
     } else {
-        p->integral += err * DT;
+        p->integral += err * dt;
         clamp(&p->integral, p->integral_limit);
     }
 
@@ -170,17 +175,17 @@ static float update_pid_angle(struct Pid *p, float angle, float rate) {
     return output;
 }
 
-static float update_pid_rate(struct Pid *p, float rate) {
+static float update_pid_rate(struct Pid *p, float rate, float dt) {
     float err = p->setpoint - rate;
 
     if (_throttle <= MIN_THROTTLE) {
         p->integral = 0.0f;
     } else {
-        p->integral += err * DT;
+        p->integral += err * dt;
         clamp(&p->integral, p->integral_limit);
     }
 
-    float derivative = (err - p->prev_err) / DT;
+    float derivative = (err - p->prev_err) / dt;
     float output = p->kp*err + p->ki*p->integral - p->kd*derivative;
     clamp(&output, 1.0f);
 
@@ -189,13 +194,13 @@ static float update_pid_rate(struct Pid *p, float rate) {
     return output;
 }
 
-static float update_pid_throttle(struct Pid *p, float rate) {
+static float update_pid_throttle(struct Pid *p, float rate, float dt) {
     float err = p->setpoint - rate;
 
-    p->integral += err * DT;
+    p->integral += err * dt;
     clamp(&p->integral, p->integral_limit);
 
-    float derivative = (err - p->prev_err) / DT;
+    float derivative = (err - p->prev_err) / dt;
     float output = p->kp*err + p->ki*p->integral - p->kd*derivative;
     clamp0(&output, 1.0f);
 
@@ -208,9 +213,12 @@ static void flight_task(void *data) {
     float roll_bias = 0.0f;
     float pitch_bias = 0.0f;
     float yaw_rate_bias = 0.0f;
-    
+    /* 0 = not yet armed this session; first armed iteration uses NOMINAL_DT */
+    static int64_t prev_loop_us = 0;
+
     while (true) {
         if (!_should_run) {
+            prev_loop_us = 0;
             _gyro_filter_initialized = false;
             set_motor_speed_pcnt(_mh[0], 0); // front right
             set_motor_speed_pcnt(_mh[1], 0); // front left
@@ -269,6 +277,22 @@ static void flight_task(void *data) {
             } while (!_should_run || _should_really_not_run);
         }
 
+        /* True delta since last loop start (includes vTaskDelay jitter) */
+        int64_t now_us = esp_timer_get_time();
+        float dt;
+        if (prev_loop_us == 0) {
+            dt = NOMINAL_DT;
+        } else {
+            dt = (float)(now_us - prev_loop_us) / 1000000.0f;
+            if (dt < DT_MIN) {
+                dt = DT_MIN;
+            }
+            if (dt > DT_MAX) {
+                dt = DT_MAX;
+            }
+        }
+        prev_loop_us = now_us;
+
         /*
           On the Chip: "BNO055" is the front
           x: forward-backward; roll (around this axis)
@@ -314,13 +338,13 @@ static void flight_task(void *data) {
         float y_acc = accel_ev.acceleration.y;
         float z_acc = accel_ev.acceleration.z;
 
-        _x_pos += _x_vel*DT + x_acc*DT*DT/2.0f;
-        _y_pos += _y_vel*DT + y_acc*DT*DT/2.0f;
-        _z_pos += _z_vel*DT + z_acc*DT*DT/2.0f;
+        _x_pos += _x_vel * dt + x_acc * dt * dt / 2.0f;
+        _y_pos += _y_vel * dt + y_acc * dt * dt / 2.0f;
+        _z_pos += _z_vel * dt + z_acc * dt * dt / 2.0f;
 
-        _x_vel += x_acc*DT;
-        _y_vel += y_acc*DT;
-        _z_vel += z_acc*DT;
+        _x_vel += x_acc * dt;
+        _y_vel += y_acc * dt;
+        _z_vel += z_acc * dt;
 
         //_pid[Pitch].setpoint = update_pid_rate(&_pid[X_Pos], _x_pos);
         //_pid[Roll].setpoint = update_pid_rate(&_pid[Y_Pos], _y_pos);
@@ -332,13 +356,13 @@ static void flight_task(void *data) {
 
         float t = _throttle;
         if (!_direct_throttle) {
-            t = update_pid_throttle(&_pid[Z_Vel], _z_vel);
+            t = update_pid_throttle(&_pid[Z_Vel], _z_vel, dt);
             _throttle = t;
         }
 
-        float r = update_pid_angle(&_pid[Roll], roll, roll_rate);
-        float p = update_pid_angle(&_pid[Pitch], pitch, pitch_rate);
-        float y = update_pid_rate(&_pid[Yaw], yaw_rate);
+        float r = update_pid_angle(&_pid[Roll], roll, roll_rate, dt);
+        float p = update_pid_angle(&_pid[Pitch], pitch, pitch_rate, dt);
+        float y = update_pid_rate(&_pid[Yaw], yaw_rate, dt);
 
         float m1 = t - r + p - y;
         float m2 = t - r - p + y;
@@ -350,7 +374,7 @@ static void flight_task(void *data) {
         set_motor_speed_pcnt(_mh[2], m3);
         set_motor_speed_pcnt(_mh[3], m4);
 
-        vTaskDelay(SLEEP_TIME / portTICK_PERIOD_MS);    
+        vTaskDelay((TickType_t)(SLEEP_TIME_MS / portTICK_PERIOD_MS));    
     }
 }
 
