@@ -29,7 +29,7 @@ int main(void) {
   if (motors_init(&m1, &m2) != OK)
     return 1;
 
-  motors_drive_distance(&m1, &m2, &imu, 1.0f);
+  motors_drive_distance(&m1, &m2, 1.0f);
 
   motors_cleanup(&m1, &m2);
   imu_cleanup(&imu);
