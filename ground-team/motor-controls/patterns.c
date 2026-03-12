@@ -5,7 +5,7 @@
 
 void pattern_square(motor_t *m1, motor_t *m2, imu_t *imu, float side_feet) {
   for (int i = 0; i < 4; i++) {
-    motors_drive_distance(m1, m2, side_feet);
+    motors_drive_distance(m1, m2, imu, side_feet);
     usleep(PAUSE_US);
     motors_turn_right(m1, m2, imu);
     usleep(PAUSE_US);
