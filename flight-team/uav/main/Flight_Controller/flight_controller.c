@@ -262,8 +262,8 @@ static void flight_task(void *data) {
                 roll = orient_ev.orientation.z;
                 pitch = orient_ev.orientation.y;
                 yaw_rate = gyro_ev.gyro.heading;
-                if (fabsf(prev_roll - roll) < 0.01 &&
-                    fabsf(prev_pitch - pitch) < 0.01 && fabsf(prev_yaw_rate - yaw_rate)) {
+                if (fabsf(prev_roll - roll) < 0.01f &&
+                    fabsf(prev_pitch - pitch) < 0.01f && fabsf(prev_yaw_rate - yaw_rate) < 0.01f) {
                     if (i == 4) {
                         ESP_LOGI(TAG, "Set Roll, Pitch, and Yaw Rate Bias to: (%f, %f, %f)", roll, pitch, yaw_rate);
                         roll_bias = roll;
