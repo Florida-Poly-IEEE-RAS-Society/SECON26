@@ -48,12 +48,12 @@ status_t telemetry_run(telemetry_t *telem) {
     case 'w':
     case 'W':
       printf("Forward %.2f ft\n", STEP_FEET);
-      motors_drive_distance(telem->m1, telem->m2, telem->imu, STEP_FEET);
+      motors_drive_distance(telem->m1, telem->m2, STEP_FEET);
       break;
     case 's':
     case 'S':
       printf("Backward %.2f ft\n", STEP_FEET);
-      motors_drive_distance(telem->m1, telem->m2, telem->imu, -STEP_FEET);
+      motors_drive_distance(telem->m1, telem->m2, -STEP_FEET);
       break;
     case 'a':
     case 'A':
