@@ -348,9 +348,9 @@ static void flight_task(void *data) {
 
         float t = _throttle;
         if (!_direct_throttle) {
-            _pid[Pitch].setpoint = update_pid_rate(&_pid[X_Pos], _x_pos);
-            _pid[Roll].setpoint = update_pid_rate(&_pid[Y_Pos], _y_pos);
-            _pid[Z_Vel].setpoint = update_pid_rate(&_pid[Z_Pos], _z_pos); // maybe just have this control the throttle directly
+            _pid[Pitch].setpoint = update_pid_rate(&_pid[X_Pos], _x_pos, dt);
+            _pid[Roll].setpoint = update_pid_rate(&_pid[Y_Pos], _y_pos, dt);
+            _pid[Z_Vel].setpoint = update_pid_rate(&_pid[Z_Pos], _z_pos, dt); // maybe just have this control the throttle directly
             /* find some good values */
             clamp(&_pid[Pitch].setpoint, 0.3);
             clamp(&_pid[Roll].setpoint, 0.3);
