@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "../core/include/robot-core.h"
+#include "../core/robot-core.h"
 #include "imu.h"
 
 #define MOTOR1_IN1 12 // Forward
@@ -28,8 +28,4 @@ typedef struct Motor {
 
 status_t motors_init(motor_t *m1, motor_t *m2);
 void motor_set(motor_t *m, motordir_t dir);
-void motors_drive_distance(motor_t *m1, motor_t *m2, float feet);
-void motors_spin(motor_t *m1, motor_t *m2, imu_t *imu, float degrees);
-void motors_turn_right(motor_t *m1, motor_t *m2, imu_t *imu);
-void motors_turn_left(motor_t *m1, motor_t *m2, imu_t *imu);
 void motors_cleanup(motor_t *m1, motor_t *m2);

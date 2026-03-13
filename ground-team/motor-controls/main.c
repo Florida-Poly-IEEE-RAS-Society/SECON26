@@ -1,37 +1,36 @@
-#include "imu.h"
-#include "motor_control.h"
-#include "patterns.h"
+#include "robot.h"
 #include <signal.h>
-#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#define PAUSE_US 500000
-
-static motor_t m1, m2;
-static imu_t imu;
+static robot_t bot;
 
 static void cleanup(int sig) {
-  (void)sig;
-  motors_cleanup(&m1, &m2);
-  imu_cleanup(&imu);
-  _exit(0);
+    (void)sig;
+    robot_cleanup(&bot);
+    _exit(0);
 }
 
+#define CHECK(fn, label)                                    \
+    do {                                                    \
+        status_t _rc = (fn);                                \
+        if (_rc != OK) {                                    \
+            fprintf(stderr, label " failed: %d\n", _rc);   \
+            robot_cleanup(&bot);                            \
+            return 1;                                       \
+        }                                                   \
+    } while (0)
+
 int main(void) {
-  signal(SIGINT, cleanup);
+    signal(SIGINT, cleanup);
 
-  if (imu_init(&imu) != OK)
-    return 1;
+    CHECK(robot_init(&bot), "Robot init");
 
-  if (imu_load_cal(&imu) != OK)
-    if (imu_calibrate(&imu) != OK)
-      return 1;
+    CHECK(forward(&bot, 10.0f),   "Drive to crank");
+    CHECK(right(&bot),            "Turn to crank");
+    CHECK(left(&bot),             "Turn after crank");
+    CHECK(forward(&bot, 5.0f),   "Drive to keypad");
 
-  if (motors_init(&m1, &m2) != OK)
-    return 1;
-
-  motors_drive_distance(&m1, &m2, 1.0f);
-
-  motors_cleanup(&m1, &m2);
-  imu_cleanup(&imu);
-  return 0;
+    robot_cleanup(&bot);
+    return 0;
 }

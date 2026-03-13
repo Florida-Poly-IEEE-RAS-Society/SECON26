@@ -1,5 +1,5 @@
 #pragma once
 
-#include "../../../core/include/robot-core.h"
+#include "../../../core/robot-core.h"
 
 status_t button_task(void);
