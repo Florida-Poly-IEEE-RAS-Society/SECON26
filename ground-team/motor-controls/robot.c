@@ -43,11 +43,14 @@ status_t robot_init(robot_t *bot) {
     return OK;
 }
 
-status_t robot_drive(robot_t *bot, float meters) {
-    if (meters == 0.0f) return OK;
+// Gyro-corrected straight drive.
+// Encoders measure distance with slip compensation (SLIP_FACTOR).
+// Gyro keeps heading — bang-bang correction pauses the leading track.
+status_t robot_drive(robot_t *bot, float inches) {
+    if (inches == 0.0f) return OK;
 
-    motordir_t dir = (meters > 0.0f) ? MOTOR_FORWARD : MOTOR_BACKWARD;
-    float target   = (meters < 0.0f) ? -meters : meters;
+    motordir_t dir = (inches > 0.0f) ? MOTOR_FORWARD : MOTOR_BACKWARD;
+    float target   = (inches < 0.0f) ? -inches : inches;
 
     enc_reset(&bot->enc1);
     enc_reset(&bot->enc2);
@@ -59,8 +62,8 @@ status_t robot_drive(robot_t *bot, float meters) {
     motor_set(&bot->m2, dir);
 
     while (1) {
-        float dl = enc_get_dist_m(&bot->enc1);
-        float dr = enc_get_dist_m(&bot->enc2);
+        float dl = enc_get_dist_in(&bot->enc1);
+        float dr = enc_get_dist_in(&bot->enc2);
 
         if ((dl + dr) * 0.5f >= target) break;
 
@@ -89,14 +92,17 @@ status_t robot_drive(robot_t *bot, float meters) {
     motor_set(&bot->m1, MOTOR_STOP);
     motor_set(&bot->m2, MOTOR_STOP);
 
-    float dl = enc_get_dist_m(&bot->enc1);
-    float dr = enc_get_dist_m(&bot->enc2);
+    float dl = enc_get_dist_in(&bot->enc1);
+    float dr = enc_get_dist_in(&bot->enc2);
     if (dir == MOTOR_BACKWARD) { dl = -dl; dr = -dr; }
     odom_update(&bot->pos, dl, dr);
 
     return OK;
 }
 
+// Gyro-based pivot turn.
+// Both tracks run opposite directions (true tank pivot).
+// Heading in pos is updated from gyro after turn completes.
 status_t robot_turn(robot_t *bot, float degrees) {
     if (degrees == 0.0f) return OK;
 
@@ -129,11 +135,18 @@ status_t robot_turn(robot_t *bot, float degrees) {
     motor_set(&bot->m1, MOTOR_STOP);
     motor_set(&bot->m2, MOTOR_STOP);
 
+    // Sync odometry heading to gyro-measured turn
     float turned_rad = to_rad(clockwise ? turned : -turned);
     odom_set_heading(&bot->pos, bot->pos.heading + turned_rad);
 
     return OK;
 }
+
+// Swing turn — one track drives, the other stays still.
+// pivot_left = 1: left track is stationary, right track drives.
+// pivot_left = 0: right track is stationary, left track drives.
+// degrees > 0 = clockwise, degrees < 0 = counter-clockwise.
+// Gyro controls when to stop.
 
 status_t robot_swing(robot_t *bot, float degrees, int pivot_left) {
     if (degrees == 0.0f) return OK;
