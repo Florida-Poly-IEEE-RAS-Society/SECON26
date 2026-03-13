@@ -346,16 +346,16 @@ static void flight_task(void *data) {
         _y_vel += y_acc * dt;
         _z_vel += z_acc * dt;
 
-        //_pid[Pitch].setpoint = update_pid_rate(&_pid[X_Pos], _x_pos);
-        //_pid[Roll].setpoint = update_pid_rate(&_pid[Y_Pos], _y_pos);
-        //_pid[Z_Vel].setpoint = update_pid_rate(&_pid[Z_Pos], _z_pos); // maybe just have this control the throttle directly
-        // find some good values
-        /* clamp(&_pid[Pitch].setpoint, 0.3); */
-        /* clamp(&_pid[Roll].setpoint, 0.3); */
-        /* clamp(&_pid[Z_Vel].setpoint, 0.03); */
-
         float t = _throttle;
         if (!_direct_throttle) {
+            _pid[Pitch].setpoint = update_pid_rate(&_pid[X_Pos], _x_pos);
+            _pid[Roll].setpoint = update_pid_rate(&_pid[Y_Pos], _y_pos);
+            _pid[Z_Vel].setpoint = update_pid_rate(&_pid[Z_Pos], _z_pos); // maybe just have this control the throttle directly
+            /* find some good values */
+            clamp(&_pid[Pitch].setpoint, 0.3);
+            clamp(&_pid[Roll].setpoint, 0.3);
+            clamp(&_pid[Z_Vel].setpoint, 0.03);
+
             t = update_pid_throttle(&_pid[Z_Vel], _z_vel, dt);
             _throttle = t;
         }
