@@ -49,63 +49,6 @@ void motor_set(motor_t *m, motordir_t dir) {
   lgGpioWrite(m->handle, m->in2, b);
 }
 
-void motors_drive_distance(motor_t *m1, motor_t *m2, float feet) {
-  motordir_t dir = feet >= 0 ? MOTOR_FORWARD : MOTOR_BACKWARD;
-  if (feet < 0)
-    feet = -feet;
-
-  unsigned int us = (unsigned int)(feet * SECS_PER_FOOT * 1e6f);
-
-  motor_set(m1, dir);
-  motor_set(m2, dir);
-  usleep(us);
-  motor_set(m1, MOTOR_STOP);
-  motor_set(m2, MOTOR_STOP);
-}
-
-void motors_spin(motor_t *m1, motor_t *m2, imu_t *imu, float degrees) {
-  int clockwise = degrees >= 0;
-  if (degrees < 0)
-    degrees = -degrees;
-
-  if (clockwise) {
-    motor_set(m1, MOTOR_FORWARD);
-    motor_set(m2, MOTOR_BACKWARD);
-  } else {
-    motor_set(m1, MOTOR_BACKWARD);
-    motor_set(m2, MOTOR_FORWARD);
-  }
-
-  float turned = 0.0f;
-  struct timespec prev, now;
-  clock_gettime(CLOCK_MONOTONIC, &prev);
-
-  while (turned < degrees) {
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    float dt =
-        (now.tv_sec - prev.tv_sec) + (now.tv_nsec - prev.tv_nsec) * 1e-9f;
-    prev = now;
-
-    float gz;
-    if (imu_read_gyro_z(imu, &gz) != OK)
-      break;
-    turned += (gz < 0 ? -gz : gz) * dt;
-
-    usleep(2000);
-  }
-
-  motor_set(m1, MOTOR_STOP);
-  motor_set(m2, MOTOR_STOP);
-}
-
-void motors_turn_right(motor_t *m1, motor_t *m2, imu_t *imu) {
-  motors_spin(m1, m2, imu, 90.0f);
-}
-
-void motors_turn_left(motor_t *m1, motor_t *m2, imu_t *imu) {
-  motors_spin(m1, m2, imu, -90.0f);
-}
-
 void motors_cleanup(motor_t *m1, motor_t *m2) {
   motor_set(m1, MOTOR_STOP);
   motor_set(m2, MOTOR_STOP);

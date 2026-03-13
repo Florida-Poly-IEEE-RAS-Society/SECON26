@@ -2,3 +2,6 @@
 build/
 ground-team/communication/uav/images/*
 .vscode/
+
+# Annoying MacOS Specific metadata files
+.DS_Store
