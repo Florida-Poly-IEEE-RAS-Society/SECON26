@@ -64,24 +64,31 @@ status_t imu_init(imu_t *imu) {
 status_t imu_calibrate(imu_t *imu) {
   printf("Calibrating IMU, keep robot still...\n");
 
-  int64_t sums[6] = {0};
-  int16_t raw[6];
+  /*
+   * MPU6050 register map starting at 0x3B:
+   *   [0] AX  [1] AY  [2] AZ  [3] TEMP  [4] GX  [5] GY  [6] GZ
+   * Read all 7 words so the temperature register is consumed and
+   * the gyro values land at indices 4-6.
+   */
+  int64_t sums[7] = {0};
+  int16_t raw[7];
 
   for (int i = 0; i < CAL_SAMPLES; i++) {
-    status_t rc = mpu_read_raw(imu->fd, REG_ACCEL_XOUT_H, raw, 6);
+    status_t rc = mpu_read_raw(imu->fd, REG_ACCEL_XOUT_H, raw, 7);
     if (rc != OK)
       return rc;
-    for (int j = 0; j < 6; j++)
+    for (int j = 0; j < 7; j++)
       sums[j] += raw[j];
     usleep(2000);
   }
 
-  imu->offsets.ax = sums[0] / CAL_SAMPLES;
-  imu->offsets.ay = sums[1] / CAL_SAMPLES;
-  imu->offsets.az = sums[2] / CAL_SAMPLES - 16384;
-  imu->offsets.gx = sums[3] / CAL_SAMPLES;
-  imu->offsets.gy = sums[4] / CAL_SAMPLES;
-  imu->offsets.gz = sums[5] / CAL_SAMPLES;
+  imu->offsets.ax = (int16_t)(sums[0] / CAL_SAMPLES);
+  imu->offsets.ay = (int16_t)(sums[1] / CAL_SAMPLES);
+  imu->offsets.az = (int16_t)(sums[2] / CAL_SAMPLES) - 16384;
+  /* sums[3] = temperature, skip */
+  imu->offsets.gx = (int16_t)(sums[4] / CAL_SAMPLES);
+  imu->offsets.gy = (int16_t)(sums[5] / CAL_SAMPLES);
+  imu->offsets.gz = (int16_t)(sums[6] / CAL_SAMPLES);
 
   printf("Offsets | accel (%d %d %d) gyro (%d %d %d)\n", imu->offsets.ax,
          imu->offsets.ay, imu->offsets.az, imu->offsets.gx, imu->offsets.gy,
@@ -105,7 +112,6 @@ status_t imu_load_cal(imu_t *imu) {
   FILE *f = fopen(IMU_CAL_FILE, "rb");
   if (!f)
     return ERR_BUS_FAIL;
-
   if (fread(&imu->offsets, sizeof(imu->offsets), 1, f) != 1) {
     fclose(f);
     return ERR_READ_FAIL;

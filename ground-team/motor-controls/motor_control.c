@@ -1,5 +1,4 @@
 #include "motor_control.h"
-#include <time.h>
 
 status_t motors_init(motor_t *m1, motor_t *m2) {
   int handle = lgGpiochipOpen(0);
@@ -21,7 +20,6 @@ status_t motors_init(motor_t *m1, motor_t *m2) {
   m1->handle = handle;
   m1->in1 = MOTOR1_IN1;
   m1->in2 = MOTOR1_IN2;
-
   m2->handle = handle;
   m2->in1 = MOTOR2_IN1;
   m2->in2 = MOTOR2_IN2;
@@ -53,4 +51,5 @@ void motors_cleanup(motor_t *m1, motor_t *m2) {
   motor_set(m1, MOTOR_STOP);
   motor_set(m2, MOTOR_STOP);
   lgGpiochipClose(m1->handle);
+  (void)m2;
 }
