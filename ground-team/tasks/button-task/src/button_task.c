@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 #define SERVO_PIN 27
-#define SERVO_EXTENDED 2000
+#define SERVO_EXTENDED 2500
 #define SERVO_RETRACTED 1000
 #define PWM_PERIOD_US 20000
 #define PRESS_HOLD_MS 500
