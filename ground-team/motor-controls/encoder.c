@@ -1,22 +1,24 @@
 #include "encoder.h"
 
-static void _encoder_callback(int handle, unsigned int gpio,
-                               unsigned int level, uint32_t tick,
-                               void *userdata) {
-    (void)handle; (void)tick;
+static void _encoder_callback(int num_alerts, lgGpioAlert_p alerts, void *userdata) {
     encoder_t *enc = (encoder_t *)userdata;
 
-    int b = (gpio == (unsigned int)enc->pin_b) ? (int)level : enc->last_b;
+    for (int i = 0; i < num_alerts; i++) {
+        int gpio  = alerts[i].report.gpio;
+        int level = alerts[i].report.level;
 
-    if ((int)gpio == enc->pin_a) enc->last_a = (int)level;
-    if ((int)gpio == enc->pin_b) enc->last_b = (int)level;
+        int b = (gpio == enc->pin_b) ? level : enc->last_b;
 
-    if ((int)gpio == enc->pin_a && level == 1) {
-        if (b == 0) enc->count++;
-        else        enc->count--;
-    } else if ((int)gpio == enc->pin_b && level == 1) {
-        if (enc->last_a == 1) enc->count++;
-        else                  enc->count--;
+        if (gpio == enc->pin_a) enc->last_a = level;
+        if (gpio == enc->pin_b) enc->last_b = level;
+
+        if (gpio == enc->pin_a && level == 1) {
+            if (b == 0) enc->count++;
+            else        enc->count--;
+        } else if (gpio == enc->pin_b && level == 1) {
+            if (enc->last_a == 1) enc->count++;
+            else                  enc->count--;
+        }
     }
 }
 
