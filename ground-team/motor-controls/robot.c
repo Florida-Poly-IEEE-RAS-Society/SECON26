@@ -43,9 +43,6 @@ status_t robot_init(robot_t *bot) {
     return OK;
 }
 
-// Gyro-corrected straight drive.
-// Encoders measure distance with slip compensation (SLIP_FACTOR).
-// Gyro keeps heading — bang-bang correction pauses the leading track.
 status_t robot_drive(robot_t *bot, float inches) {
     if (inches == 0.0f) return OK;
 
@@ -100,9 +97,6 @@ status_t robot_drive(robot_t *bot, float inches) {
     return OK;
 }
 
-// Gyro-based pivot turn.
-// Both tracks run opposite directions (true tank pivot).
-// Heading in pos is updated from gyro after turn completes.
 status_t robot_turn(robot_t *bot, float degrees) {
     if (degrees == 0.0f) return OK;
 
@@ -141,12 +135,6 @@ status_t robot_turn(robot_t *bot, float degrees) {
 
     return OK;
 }
-
-// Swing turn — one track drives, the other stays still.
-// pivot_left = 1: left track is stationary, right track drives.
-// pivot_left = 0: right track is stationary, left track drives.
-// degrees > 0 = clockwise, degrees < 0 = counter-clockwise.
-// Gyro controls when to stop.
 
 status_t robot_swing(robot_t *bot, float degrees, int pivot_left) {
     if (degrees == 0.0f) return OK;
