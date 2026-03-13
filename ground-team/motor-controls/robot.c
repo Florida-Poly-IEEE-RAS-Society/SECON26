@@ -129,7 +129,6 @@ status_t robot_turn(robot_t *bot, float degrees) {
     motor_set(&bot->m1, MOTOR_STOP);
     motor_set(&bot->m2, MOTOR_STOP);
 
-    // Sync odometry heading to gyro-measured turn
     float turned_rad = to_rad(clockwise ? turned : -turned);
     odom_set_heading(&bot->pos, bot->pos.heading + turned_rad);
 
@@ -165,7 +164,8 @@ status_t robot_swing(robot_t *bot, float degrees, int pivot_left) {
         usleep(DRIVE_LOOP_US);
     }
 
-    motors_stop(&bot->m1, &bot->m2);
+    motor_set(&bot->m1, MOTOR_STOP);
+    motor_set(&bot->m2, MOTOR_STOP);
 
     float turned_rad = to_rad(clockwise ? turned : -turned);
     odom_set_heading(&bot->pos, bot->pos.heading + turned_rad);
