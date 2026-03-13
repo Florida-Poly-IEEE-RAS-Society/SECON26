@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../core/include/robot-core.h"
+#include "../core/robot-core.h"
 #include <stdint.h>
 
 #define MPU6050_ADDR 0x68

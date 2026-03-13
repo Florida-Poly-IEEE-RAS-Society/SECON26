@@ -53,7 +53,6 @@ typedef enum {
 #define to_deg(x) ((x) * 57.29577951308232f)
 
 // Hardware configuration
-
 // Encoder
 
 #define GEAR_RATIO   45.0f
@@ -74,30 +73,29 @@ typedef enum {
 // Drive sprocket
 // Measure the toothed gear the motor shaft drives, not the road wheels.
 
-#define SPROCKET_DIA_MM  65.0f                          // CALIBRATE PLEASEEEE
-#define SPROCKET_RAD_M   (SPROCKET_DIA_MM / 2000.0f)
-#define SPROCKET_CIRC_M  (BOT_PI * (SPROCKET_DIA_MM / 1000.0f))
+#define SPROCKET_DIA_MM   55.5f
+#define SPROCKET_CIRC_IN  (BOT_PI * (SPROCKET_DIA_MM / 25.4f))
 
 // Track spacing
 // Center to center distance between left and right tracks.
-// Measured from chassis diagram.
+// Measured from chassis diagram (101.58 mm).
 
-#define TRACK_M  0.10158f
+#define TRACK_IN  3.999f
 
 // Track slip compensation
 // Tracks slip against the ground during straight driving.
-// To calibrate, command exactly one meter and measure actual distance.
+// To calibrate, command exactly 12 inches and measure actual distance.
 //
 // SLIP_FACTOR = actual distance / encoder reported distance
 //
-// Example: encoder reports 1.00 m, robot actually moved 0.92 m, set 0.92
+// Example: encoder reports 12.0 in, robot actually moved 11.0 in, set 0.917
 
-#define SLIP_FACTOR  1.0f                               // CALIBRATE
+#define SLIP_FACTOR  1.0f                                          // CALIBRATE
 
 // Maximum speed
 
 #define MAX_RPM  150.0f
-#define MAX_MPS  (MAX_RPM / 60.0f * SPROCKET_CIRC_M)
+#define MAX_IPS  (MAX_RPM / 60.0f * SPROCKET_CIRC_IN)
 
 // Data types
 
@@ -111,20 +109,20 @@ static inline float counts_to_revs(int32_t counts) {
     return (float)counts / ENC_PPR;
 }
 
-static inline float counts_to_m(int32_t counts) {
-    return counts_to_revs(counts) * SPROCKET_CIRC_M * SLIP_FACTOR;
+static inline float counts_to_in(int32_t counts) {
+    return counts_to_revs(counts) * SPROCKET_CIRC_IN * SLIP_FACTOR;
 }
 
 static inline float cps_to_rpm(float cps) {
     return (cps / ENC_PPR) * 60.0f;
 }
 
-static inline float rpm_to_mps(float rpm) {
-    return (rpm / 60.0f) * SPROCKET_CIRC_M;
+static inline float rpm_to_ips(float rpm) {
+    return (rpm / 60.0f) * SPROCKET_CIRC_IN;
 }
 
-static inline float mps_to_rpm(float mps) {
-    return (mps / SPROCKET_CIRC_M) * 60.0f;
+static inline float ips_to_rpm(float ips) {
+    return (ips / SPROCKET_CIRC_IN) * 60.0f;
 }
 
 // Angle normalization
@@ -148,7 +146,7 @@ static inline float wrap_angle(float rad) {
 
 static inline void odom_update(pos2_t *pos, float dl, float dr) {
     float dist    = (dl + dr) * 0.5f;
-    float dtheta  = (dr - dl) / TRACK_M;
+    float dtheta  = (dr - dl) / TRACK_IN;
     pos->heading += dtheta;
     pos->x       += dist * cosf(pos->heading);
     pos->y       += dist * sinf(pos->heading);
@@ -170,12 +168,12 @@ static inline float dist2d(float x1, float y1, float x2, float y2) {
 //
 // Use for reference only. Gyro controls actual turn behavior.
 
-static inline float turn_arc_m(float deg) {
-    return BOT_PI * TRACK_M * (deg < 0 ? -deg : deg) / 360.0f;
+static inline float turn_arc_in(float deg) {
+    return BOT_PI * TRACK_IN * (deg < 0 ? -deg : deg) / 360.0f;
 }
 
 static inline int32_t turn_counts(float deg) {
-    return (int32_t)((turn_arc_m(deg) / SPROCKET_CIRC_M) * ENC_PPR);
+    return (int32_t)((turn_arc_in(deg) / SPROCKET_CIRC_IN) * ENC_PPR);
 }
 
 // Utility math

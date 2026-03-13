@@ -1,4 +1,4 @@
-#include "../../../core/include/robot-core.h"
+#include "../../../core/robot-core.h"
 #include <gpiod.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -14,7 +14,7 @@
 
 static void set_servo_pulse(
 		struct gpiod_line *s1,
-     		int pulse_us)	       
+     		int pulse_us)
 {
     struct timespec high = {0, pulse_us * 1000};
     struct timespec low = {0, (PWM_PERIOD_US - pulse_us) * 1000};
@@ -23,7 +23,7 @@ static void set_servo_pulse(
     nanosleep(&high, NULL);
     gpiod_line_set_value(s1, 0);
     nanosleep(&low, NULL);
-}	
+}
 
 void move_servo(struct gpiod_line *line, int pulse_us) {
 	int cycles = (MOVE_TIME_MS * 1000) / PWM_PERIOD_US;

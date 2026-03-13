@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "../core/include/robot-core.h"
+#include "../core/robot-core.h"
 #include "imu.h"
 
 #define MOTOR1_IN1 12 // Forward

@@ -46,6 +46,6 @@ int32_t enc_get_count(const encoder_t *enc) {
     return enc->count;
 }
 
-float enc_get_dist_m(const encoder_t *enc) {
-    return counts_to_m(enc->count);
+float enc_get_dist_in(const encoder_t *enc) {
+    return counts_to_in(enc->count);
 }

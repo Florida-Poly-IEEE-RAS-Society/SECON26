@@ -1,22 +1,14 @@
-// encoder.h
-//
-// Quadrature encoder driver using lgpio alerts.
-// Each encoder uses two Hall effect channels (A and B).
-//
-// Wiring
-// M1 encoder A = GPIO 25
-// M1 encoder B = GPIO 24
-// M2 encoder A = GPIO 23
-// M2 encoder B = GPIO 18
-
 #pragma once
 
-#include "../core/include/robot-core.h"
+#include "../core/robot-core.h"
 #include <lgpio.h>
 #include <stdint.h>
 
+// M1: forward=21, back=20
 #define ENC1_PIN_A  25
 #define ENC1_PIN_B  24
+
+// M2: forward=12, back=16
 #define ENC2_PIN_A  23
 #define ENC2_PIN_B  18
 
@@ -31,4 +23,4 @@ typedef struct {
 status_t enc_init(int gpio_handle, encoder_t *enc, int pin_a, int pin_b);
 void     enc_reset(encoder_t *enc);
 int32_t  enc_get_count(const encoder_t *enc);
-float    enc_get_dist_m(const encoder_t *enc);
+float    enc_get_dist_in(const encoder_t *enc);
