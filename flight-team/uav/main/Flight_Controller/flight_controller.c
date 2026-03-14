@@ -22,11 +22,15 @@
 #define MIN_THROTTLE 0.06f
 #define ACCEPTABLE_ERROR 0.1f
 
+// Main loop updates
+#define GYRO_CHANCES ((int)(SLEEP_TIME_MS * 3.0f))
+
 // arbitrary
 #define GYRO_ID 55
 
 #define METER_PER_INCH (0.0254f)
-#define RAD_PER_DEG (3.141592654f / 180.0f)
+#define PI (3.141592654f)
+#define RAD_PER_DEG (PI / 180.0f)
 
 #define NVS_BNO055_NAMESPACE "bno055"
 #define NVS_BNO055_CAL_KEY   "cal_offsets"
@@ -213,11 +217,13 @@ static void flight_task(void *data) {
     float roll_bias = 0.0f;
     float pitch_bias = 0.0f;
     float yaw_rate_bias = 0.0f;
+    int gyro_chances = 0;
     /* 0 = not yet armed this session; first armed iteration uses NOMINAL_DT */
     static int64_t prev_loop_us = 0;
 
     while (true) {
         if (!_should_run) {
+            gyro_chances = GYRO_CHANCES; // gyro gets some chances to recover if not calibrated
             prev_loop_us = 0;
             _gyro_filter_initialized = false;
             set_motor_speed_pcnt(_mh[0], 0); // front right
@@ -309,6 +315,24 @@ static void flight_task(void *data) {
         float roll = (orient_ev.orientation.z - roll_bias) * RAD_PER_DEG;
         float pitch = (orient_ev.orientation.y - pitch_bias) * RAD_PER_DEG;
         float yaw = orient_ev.orientation.x * RAD_PER_DEG;
+
+        if (fabsf(roll) >= PI/4.0f || fabsf(pitch) >= PI/4.0f) {
+            ESP_LOGE(TAG, "ANGLE TOO BIG; ASSUMING FLIP; STOPPING MOTORS");
+            _should_run = false;
+            continue;
+        }
+
+        if (!bno055_isFullyCalibrated()) {
+            if (gyro_chances <= 0) {
+                ESP_LOGE(TAG, "GYRO NOT CALIBRATED; STOPPING MOTORS");
+                _should_run = false;
+                continue;
+            } else {
+                gyro_chances -= 1;
+            }
+        } else {
+            gyro_chances = GYRO_CHANCES;
+        }
 
         float roll_rate_raw = gyro_ev.gyro.roll;
         float pitch_rate_raw = gyro_ev.gyro.pitch;

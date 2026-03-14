@@ -566,7 +566,10 @@ void bno055_setSensorOffsets4(bno055_offsets_t const *offsets_type) {
 }
 
 bool bno055_isFullyCalibrated(void) {
-    uint8_t system, gyro, accel, mag;
+    uint8_t system = 0;
+    uint8_t gyro = 0;
+    uint8_t accel = 0;
+    uint8_t mag = 0;
     bno055_getCalibration(&system, &gyro, &accel, &mag);
 
     switch (_mode) {
