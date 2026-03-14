@@ -16,7 +16,7 @@
    the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
 */
 #define EXAMPLE_ESP_WIFI_SSID      "magicsmoke_flpoly"
-#define EXAMPLE_ESP_WIFI_PASS      "phoenix"
+#define EXAMPLE_ESP_WIFI_PASS      "phoenix_"
 #define EXAMPLE_ESP_WIFI_CHANNEL   1
 #define EXAMPLE_MAX_STA_CONN       4
 #define EXAMPLE_GTK_REKEY_INTERVAL 600
